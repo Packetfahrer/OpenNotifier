@@ -287,6 +287,11 @@ static void ProcessApplicationIcon(NSString* identifier, int type = 0) //0 = bad
 			{
 				tmpName = [NSString stringWithFormat:@"Count%d%@", count, [name substringFromIndex:5]];
 			}
+			else
+			{
+				// Needed for an odd situtation where count is sometimes not > 0
+				tmpName = [NSString stringWithFormat:@"Count%d%@", 1, [name substringFromIndex:5]];
+			}
 
 			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@@2x.png", path, tmpName]]
 				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@_Color@2x.png", path, tmpName]]) {
@@ -298,12 +303,6 @@ static void ProcessApplicationIcon(NSString* identifier, int type = 0) //0 = bad
 				name = [NSString stringWithFormat:@"Count%d%@", 10, [name substringFromIndex:5]];
 			} else {
 				name = tmpName;
-			}
-
-			if (shouldShow)
-			{
-				// Remove icon so it can be readded with a different count value
-				[statusBarItems removeObjectForKey:uniqueName];
 			}
 		}
 
@@ -390,6 +389,11 @@ static void ProcessSystemIcon(NSString* identifier, int shouldShow, NSString* al
 			{
 				tmpName = [NSString stringWithFormat:@"Count%d%@", shouldShow, [name substringFromIndex:5]];
 			}
+			else
+			{
+				// Needed for an odd situtation where count is sometimes not > 0
+				tmpName = [NSString stringWithFormat:@"Count%d%@", 1, [name substringFromIndex:5]];
+			}
 
 			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@@2x.png", path, tmpName]]
 				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@_Color@2x.png", path, tmpName]]) {
@@ -401,12 +405,6 @@ static void ProcessSystemIcon(NSString* identifier, int shouldShow, NSString* al
 				name = [NSString stringWithFormat:@"Count%d%@", 10, [name substringFromIndex:5]];
 			} else {
 				name = tmpName;
-			}
-
-			if (shouldShow)
-			{
-				// Remove icon so it can be readded with a different count value
-				[statusBarItems removeObjectForKey:uniqueName];
 			}
 		}
 
