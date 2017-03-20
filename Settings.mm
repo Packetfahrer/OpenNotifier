@@ -56,7 +56,8 @@ static NSMutableArray* statusIcons;
 	UIImage* icon = [cachedIcons objectForKey:name];
 	if (icon) return icon; // icon already cached so let's return it
 
-	icon = [UIImage imageWithContentsOfFile:[NSString stringWithFormat:@"%@/Silver_ON_%@.png", iconPath, name]];
+	icon = [UIImage imageWithContentsOfFile:[NSString stringWithFormat:@"%@/libmoorecon/Silver_ON_%@.png", iconPath, name]];
+	if (!icon) icon = [UIImage imageWithContentsOfFile:[NSString stringWithFormat:@"%@/Silver_ON_%@.png", iconPath, name]];
 	if (!icon) icon = defaultIcon;
 
 	float maxWidth = 40.0f;
@@ -137,7 +138,7 @@ static NSMutableArray* statusIcons;
 #pragma mark #region [ OpenNotifierSettingsRootController ]
 static void AlertMissingIcon(NSString *icon)
 {
-	UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"OpenNotifier9" message:[NSString stringWithFormat:@"Make sure you assign an image for the %@ by tapping on the icon name!", icon] delegate:nil cancelButtonTitle:@"Ok" otherButtonTitles:nil];
+	UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"OpenNotifier10" message:[NSString stringWithFormat:@"Make sure you assign an image for the %@ by tapping on the icon name!", icon] delegate:nil cancelButtonTitle:@"Ok" otherButtonTitles:nil];
 	[alertView show];
 	[alertView release];
 }
@@ -224,6 +225,8 @@ static void AlertMissingIcon(NSString *icon)
 	if ([key isEqualToString:ONWatchIconLeftKey]) return NSBool(preferences.watchIconOnLeft);
 	if ([key isEqualToString:ONWiFiCallingModeEnabledKey]) return NSBool(preferences.wiFiCallingModeEnabled);
 	if ([key isEqualToString:ONWiFiCallingIconLeftKey]) return NSBool(preferences.wiFiCallingIconOnLeft);
+	if ([key isEqualToString:ONNotificationCenterModeEnabledKey]) return NSBool(preferences.notificationCenterModeEnabled);
+	if ([key isEqualToString:ONNotificationCenterIconLeftKey]) return NSBool(preferences.notificationCenterIconOnLeft);
 
 	return nil;
 }
@@ -402,6 +405,18 @@ static void AlertMissingIcon(NSString *icon)
 		}
 	}
 	if ([key isEqualToString:ONWiFiCallingIconLeftKey]) preferences.wiFiCallingIconOnLeft = [value boolValue];
+	if ([key isEqualToString:ONNotificationCenterModeEnabledKey]) {
+		preferences.notificationCenterModeEnabled = [value boolValue];
+
+		if (preferences.notificationCenterModeEnabled) {
+			NSString *identifier = @"Notification Center Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
+	if ([key isEqualToString:ONNotificationCenterIconLeftKey]) preferences.notificationCenterIconOnLeft = [value boolValue];
 }
 
 - (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section
@@ -650,6 +665,7 @@ static void AlertMissingIcon(NSString *icon)
 - (void)updateSearchResultsForSearchController:(UISearchController *)searchController
 {
 	NSString *searchText = searchController.searchBar.text;
+
 	[self updateDataSource:searchText];
 }
 
@@ -723,6 +739,14 @@ static void AlertMissingIcon(NSString *icon)
 		statusIcons = [[NSMutableArray alloc] init];
 		NSRegularExpression* regex = [NSRegularExpression regularExpressionWithPattern:SilverIconRegexPattern
 			options:NSRegularExpressionCaseInsensitive error:nil];
+
+		for (NSString* path in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:[NSString stringWithFormat:@"%@/libmoorecon", iconPath] error:nil])
+		{
+			NSTextCheckingResult* match = [regex firstMatchInString:path options:0 range:NSMakeRange(0, path.length)];
+			if (!match) continue;
+			NSString* name = [path substringWithRange:[match rangeAtIndex:1]];
+			if (![statusIcons containsObject:name]) [statusIcons addObject:name];
+		}
 
 		for (NSString* path in [[NSFileManager defaultManager] contentsOfDirectoryAtPath:iconPath error:nil])
 		{
@@ -837,13 +861,15 @@ static void AlertMissingIcon(NSString *icon)
 	_specifiers = [[NSMutableArray alloc] init];
 
 	if (_iconType == 0) {
-		PSSpecifier* specifier = [PSSpecifier preferenceSpecifierNamed:@"Use Icon Badges" target:self set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:)
+		// iOS10_Temp @"Use Icon Badges"
+		PSSpecifier* specifier = [PSSpecifier preferenceSpecifierNamed:@"Disabled" target:self set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:)
 																detail:nil cell:PSSwitchCell edit:nil];
 		[specifier setProperty:ONUseBadgesKey forKey:PSIDKey];
 		[specifier setProperty:_identifier forKey:ONAppIdentifierKey];
 		[_specifiers addObject:specifier];
 
-		specifier = [PSSpecifier preferenceSpecifierNamed:@"Use Notification Center" target:self set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:)
+		// iOS10_Temp @"Use Notification Center"
+		specifier = [PSSpecifier preferenceSpecifierNamed:@"Disabled" target:self set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:)
 																detail:nil cell:PSSwitchCell edit:nil];
 		[specifier setProperty:ONUseNotificationsKey forKey:PSIDKey];
 		[specifier setProperty:_identifier forKey:ONAppIdentifierKey];
@@ -924,6 +950,11 @@ static void AlertMissingIcon(NSString *icon)
 	ONIconCell* cell = (ONIconCell*)[super tableView:tableView cellForRowAtIndexPath:indexPath];
 	if ([indexPath indexAtPosition:1] > 1 || _iconType != 0) {
 		((UITableViewCell *)cell).imageView.image = [cell getIconNamed:((PSTableCell *)cell).specifier.identifier];
+	}
+	// iOS10_Temp
+	else if (indexPath.row < 2) {
+		((UITableViewCell *)cell).userInteractionEnabled = NO;
+		((UITableViewCell *)cell).textLabel.enabled = NO;
 	}
 
 	return (UITableViewCell *)cell;

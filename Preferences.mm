@@ -764,5 +764,27 @@ static ONPreferences* _instance;
 	[_data setObject:NSBool(value) forKey:ONWiFiCallingIconLeftKey];
 	[self saveWithNotification:WiFiCallingModeChangedNotification];
 }
+
+-(bool)notificationCenterModeEnabled
+{
+	return [_data.allKeys containsObject:ONNotificationCenterModeEnabledKey] ? [[_data objectForKey:ONNotificationCenterModeEnabledKey] boolValue] : false;
+}
+
+-(void)setNotificationCenterModeEnabled:(bool)value
+{
+	[_data setObject:NSBool(value) forKey:ONNotificationCenterModeEnabledKey];
+	[self saveWithNotification:NotificationCenterModeChangedNotification];
+}
+
+-(bool)notificationCenterIconOnLeft
+{
+	return [_data.allKeys containsObject:ONNotificationCenterIconLeftKey] ? [[_data objectForKey:ONNotificationCenterIconLeftKey] boolValue]: false;
+}
+
+-(void)setNotificationCenterIconOnLeft:(bool)value
+{
+	[_data setObject:NSBool(value) forKey:ONNotificationCenterIconLeftKey];
+	[self saveWithNotification:NotificationCenterModeChangedNotification];
+}
 @end
 #pragma mark #endregion

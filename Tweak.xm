@@ -25,6 +25,41 @@
 #define UIKitVersionNumber_iOS_7_1_2 847.270000
 #define UIKitVersionNumber_iOS_9_1 1241.11
 
+@interface NCNotificationSection : NSObject
+@property(nonatomic, retain) NSMutableDictionary *coalescedNotifications;
+@property(nonatomic, readonly) NSUInteger notificationsCount;
+@end
+
+@interface NCNotificationStore : NSObject
+@property(nonatomic, retain) NSMutableDictionary *notificationSections;
+@property(nonatomic, readonly) NSUInteger sectionsCount;
+@property(nonatomic, readonly) NSUInteger notificationsCount;
+@end
+
+@interface NCNotificationDispatcher : NSObject
+@property(nonatomic, retain) NCNotificationStore *notificationStore;
+@end
+
+@interface NCBulletinNotificationSource : NSObject
+@property(nonatomic, retain) NCNotificationDispatcher *dispatcher;
+- (NSMutableDictionary *)bulletinFeeds;
+@end
+
+@interface NCNotificationRequest : NSObject
+@property(nonatomic, copy, readonly) NSString *sectionIdentifier;
+@end
+
+@interface NCNotificationChronologicalList : NSObject
+- (NSUInteger)sectionCount;
+- (NSUInteger)rowCountForSectionIndex:(NSUInteger)arg1;
+- (id)allNotificationRequests;
+@end
+
+@interface NCNotificationSectionListViewController : UICollectionViewController // NCNotificationListViewController
+@property(nonatomic, retain) id sectionList; // NCNotificationChronologicalList
+- (BOOL)hasContent;
+@end
+
 @interface SBBulletinObserverViewController : UIViewController
 - (id)firstSection;
 - (unsigned int)_numberOfVisibleSections;
@@ -47,6 +82,11 @@
 + (id)sharedInstanceIfExists;
 + (id)sharedInstance;
 @property(readonly, nonatomic) SBNotificationCenterViewController *viewController;
+@end
+
+@interface BBSectionInfo
+@property(nonatomic, copy) NSString *sectionID;
+@property(assign, nonatomic) NSUInteger bulletinCount;
 @end
 
 @interface BBBulletin
@@ -115,6 +155,7 @@ static BOOL changeTether = NO;
 static id mailBadge = nil;
 
 static NSDate *lastProcessDateNC = nil;
+static NCBulletinNotificationSource *bulletinNotificationSource = nil;
 #pragma mark #endregion
 
 #pragma mark #region [ Global Functions ]
@@ -169,20 +210,38 @@ static void ProcessApplicationIcon(NSString* identifier, int type = 0) //0 = bad
 
 	ONApplication* app;
 	if (!(app = [preferences getApplication:identifier])) return;
-	if (type == 0 && !(app.useBadges == 1 || preferences.globalUseBadges || (app.useNotifications != 1 && !preferences.globalUseNotifications))) return;
-	if (type == 1 && app.useNotifications != 1 && !preferences.globalUseNotifications) return;
+
+	////////////////////////////////////////////////////////////////////
+	//
+	// iOS10_Temp
+	if (type == 1) return; // iOS10_Temp
 
 	BOOL shouldShow = YES;
 	int count = 0;
-	int countBadges = 0;
+	int countBadges = [[trackedBadgeCount objectForKey:identifier] intValue];
 	int countNotifications = 0;
-	if (app.useBadges == 1 || preferences.globalUseBadges || (app.useNotifications != 1 && !preferences.globalUseNotifications)) {
-		countBadges = [[trackedBadgeCount objectForKey:identifier] intValue];
-	}
+	//
+	////////////////////////////////////////////////////////////////////
 
-	if (app.useNotifications == 1 || preferences.globalUseNotifications) {
-		countNotifications = [[trackedNotificationCount objectForKey:identifier] intValue];
-	}
+	// ////////////////////////////////////////////////////////////////////
+	// // iOS10_Temp Use Notifications and Badges
+	// if (type == 0 && !(app.useBadges == 1 || preferences.globalUseBadges || (app.useNotifications != 1 && !preferences.globalUseNotifications))) return;
+	// if (type == 1 && app.useNotifications != 1 && !preferences.globalUseNotifications) return;
+	//
+	// BOOL shouldShow = YES;
+	// int count = 0;
+	// int countBadges = 0;
+	// int countNotifications = 0;
+	// if (app.useBadges == 1 || preferences.globalUseBadges || (app.useNotifications != 1 && !preferences.globalUseNotifications)) {
+	// 	countBadges = [[trackedBadgeCount objectForKey:identifier] intValue];
+	// }
+	//
+	// if (app.useNotifications == 1 || preferences.globalUseNotifications) {
+	// 	countNotifications = [[trackedNotificationCount objectForKey:identifier] intValue];
+	// }
+	// //
+	// ////////////////////////////////////////////////////////////////////
+
 	Log(@"ProcessApplicationIcon (%d) %d, %d -- %@", type, countBadges, countNotifications, identifier);
 
 	BOOL isCountIcon = NO;
@@ -212,7 +271,13 @@ static void ProcessApplicationIcon(NSString* identifier, int type = 0) //0 = bad
 
 		if ([name hasPrefix:@"Count_"])
 		{
-			NSString* tmpName;
+			NSString* tmpName = [NSString stringWithFormat:@"Count%d%@", 1, [name substringFromIndex:5]];
+			NSString *path = @"/System/Library/Frameworks/UIKit.framework/libmoorecon";
+			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@@2x.png", path, tmpName]]
+				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@_Color@2x.png", path, tmpName]]) {
+				path = @"/System/Library/Frameworks/UIKit.framework";
+			}
+
 			isCountIcon = true;
 			if (count > 99)
 			{
@@ -223,13 +288,13 @@ static void ProcessApplicationIcon(NSString* identifier, int type = 0) //0 = bad
 				tmpName = [NSString stringWithFormat:@"Count%d%@", count, [name substringFromIndex:5]];
 			}
 
-			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@@2x.png", tmpName]]
-				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@_Color@2x.png", tmpName]]) {
+			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@@2x.png", path, tmpName]]
+				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@_Color@2x.png", path, tmpName]]) {
 				tmpName = [NSString stringWithFormat:@"Count%d%@", 100, [name substringFromIndex:5]];
 			}
 
-			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@@2x.png", tmpName]]
-				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@_Color@2x.png", tmpName]]) {
+			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@@2x.png", path, tmpName]]
+				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@_Color@2x.png", path, tmpName]]) {
 				name = [NSString stringWithFormat:@"Count%d%@", 10, [name substringFromIndex:5]];
 			} else {
 				name = tmpName;
@@ -277,12 +342,14 @@ static void ProcessApplicationIcon(NSString* identifier, int type = 0) //0 = bad
 	}
 }
 
-static void ProcessSystemIcon(NSString* identifier, bool shouldShow, NSString* alt)
+static void ProcessSystemIcon(NSString* identifier, int shouldShow, NSString* alt)
 {
 	if (!preferences.enabled) return;
 
 	ONApplication* app;
 	if (!(app = [preferences getApplication:identifier])) return;
+
+	BOOL isCountIcon = NO;
 
 	for (NSString* name in app.icons.allKeys)
 	{
@@ -307,7 +374,40 @@ static void ProcessSystemIcon(NSString* identifier, bool shouldShow, NSString* a
 
 		if ([name hasPrefix:@"Count_"])
 		{
-			name = [NSString stringWithFormat:@"Count%d%@", 1, [name substringFromIndex:5]];
+			NSString* tmpName = [NSString stringWithFormat:@"Count%d%@", 1, [name substringFromIndex:5]];
+			NSString *path = @"/System/Library/Frameworks/UIKit.framework/libmoorecon";
+			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@@2x.png", path, tmpName]]
+				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@_Color@2x.png", path, tmpName]]) {
+				path = @"/System/Library/Frameworks/UIKit.framework";
+			}
+
+			isCountIcon = true;
+			if (shouldShow > 99)
+			{
+				tmpName = [NSString stringWithFormat:@"Count%d%@", 100, [name substringFromIndex:5]];
+			}
+			else if (shouldShow > 0)
+			{
+				tmpName = [NSString stringWithFormat:@"Count%d%@", shouldShow, [name substringFromIndex:5]];
+			}
+
+			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@@2x.png", path, tmpName]]
+				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@_Color@2x.png", path, tmpName]]) {
+				tmpName = [NSString stringWithFormat:@"Count%d%@", 100, [name substringFromIndex:5]];
+			}
+
+			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@@2x.png", path, tmpName]]
+				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"%@/Black_ON_%@_Color@2x.png", path, tmpName]]) {
+				name = [NSString stringWithFormat:@"Count%d%@", 10, [name substringFromIndex:5]];
+			} else {
+				name = tmpName;
+			}
+
+			if (shouldShow)
+			{
+				// Remove icon so it can be readded with a different count value
+				[statusBarItems removeObjectForKey:uniqueName];
+			}
 		}
 
 		// applications may be sharing name and alignment so lets
@@ -331,7 +431,7 @@ static void ProcessSystemIcon(NSString* identifier, bool shouldShow, NSString* a
 			[apps addObject:identifier];
 			[uniqueIcon setObject:apps forKey:ONApplicationsKey];
 
-			if (![uniqueIcon.allKeys containsObject:ONIconNameKey])
+			if (![uniqueIcon.allKeys containsObject:ONIconNameKey] || isCountIcon)
 				[uniqueIcon setObject:CreateStatusBarItem(uniqueName, name, onLeft) forKey:ONIconNameKey];
 
 			((LSStatusBarItem *)[uniqueIcon objectForKey:ONIconNameKey]).imageName = [NSString stringWithFormat:@"ON_%@%@", name, alt];
@@ -476,11 +576,7 @@ static void TetherModeSettingsChanged()
 static void UpdateAirPlayIcon()
 {
 	NSString *iconName;
-	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
-		iconName = @"UIStatusBarIndicatorItemView:AirPlay (Right)";
-	} else {
-		iconName = @"Indicator:AirPlay (Right)";
-	}
+	iconName = @"UIStatusBarIndicatorItemView:AirPlay (Right)";
 
 	ProcessSystemIcon(@"AirPlay Icon", preferences.airPlayModeEnabled && isAirPlay == 1, @"");
 	if (preferences.airPlayModeEnabled && preferences.enabled && isAirPlay == 1)
@@ -496,11 +592,7 @@ static void UpdateAirPlayIcon()
 static void UpdateAlarmIcon()
 {
 	NSString *iconName;
-	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
-		iconName = @"UIStatusBarIndicatorItemView:Alarm (Right)";
-	} else {
-		iconName = @"Indicator:Alarm (Right)";
-	}
+	iconName = @"UIStatusBarIndicatorItemView:Alarm (Right)";
 
 	ProcessSystemIcon(@"Alarm Icon", preferences.alarmModeEnabled && (isAlarm == !preferences.alarmModeInverted), @"");
 	if (preferences.alarmModeEnabled && isAlarm && preferences.enabled)
@@ -516,11 +608,7 @@ static void UpdateAlarmIcon()
 static void UpdateBluetoothIcon()
 {
 	NSString *iconName;
-	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
-		iconName = @"UIStatusBarBluetoothItemView (Right)";
-	} else {
-		iconName = @"Bluetooth (Right)";
-	}
+	iconName = @"UIStatusBarBluetoothItemView (Right)";
 
 	BluetoothManager *bm = [%c(BluetoothManager) sharedInstance];
 	isBluetooth = bm && bm.enabled;
@@ -549,11 +637,7 @@ static void UpdatePhoneMicMutedIcon()
 static void UpdateQuietIcon()
 {
 	NSString *iconName;
-	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
-		iconName = @"UIStatusBarQuietModeItemView:QuietMode (Right)";
-	} else {
-		iconName = @"QuietMode:QuietMode (Right)";
-	}
+	iconName = @"UIStatusBarQuietModeItemView:QuietMode (Right)";
 
 	ProcessSystemIcon(@"Do Not Disturb Icon", preferences.quietModeEnabled && (isQuiet == !preferences.quietModeInverted), @"");
 	if (preferences.quietModeEnabled && isQuiet && preferences.enabled)
@@ -569,11 +653,7 @@ static void UpdateQuietIcon()
 static void UpdateRotationLockIcon()
 {
 	NSString *iconName;
-	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
-		iconName = @"UIStatusBarIndicatorItemView:RotationLock (Right)";
-	} else {
-		iconName = @"Indicator:RotationLock (Right)";
-	}
+	iconName = @"UIStatusBarIndicatorItemView:RotationLock (Right)";
 
 	SBOrientationLockManager *bm = [%c(SBOrientationLockManager) sharedInstance];
 	if ([bm respondsToSelector:@selector(isUserLocked)])
@@ -597,11 +677,7 @@ static void UpdateRotationLockIcon()
 static void UpdateVPNIcon()
 {
 	NSString *iconName;
-	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
-		iconName = @"UIStatusBarIndicatorItemView:VPN (Left)";
-	} else {
-		iconName = @"Indicator:VPN (Left/Right)";
-	}
+	iconName = @"UIStatusBarIndicatorItemView:VPN (Left)";
 
 	SBTelephonyManager *tm = [%c(SBTelephonyManager) sharedTelephonyManager];
 	isVPN = tm && tm.isUsingVPNConnection;
@@ -636,6 +712,14 @@ static void UpdateWatchIcon()
 static void UpdateWiFiCallingIcon()
 {
 	ProcessSystemIcon(@"WiFi Calling Icon", preferences.wiFiCallingModeEnabled && isWiFiCallingActive, @"");
+}
+
+static void UpdateNotificationCenterIcon()
+{
+	NSString *sectionID = @"Notification Center Icon";
+	int showBadge = [trackedNotificationCount objectForKey:sectionID] ? [[trackedNotificationCount objectForKey:sectionID] intValue] : 0;
+	showBadge = preferences.enabled && preferences.notificationCenterModeEnabled && showBadge > 0 ? showBadge : 0;
+	ProcessSystemIcon(sectionID, showBadge, @"");
 }
 
 static int isAirPlayActive()
@@ -736,6 +820,12 @@ static void WiFiCallingModeSettingsChanged()
 	UpdateWiFiCallingIcon();
 }
 
+static void NotificationCenterModeSettingsChanged()
+{
+	ReloadSettings();
+	UpdateNotificationCenterIcon();
+}
+
 static void HideMailSettingsChanged()
 {
 	ReloadSettings();
@@ -744,11 +834,7 @@ static void HideMailSettingsChanged()
 	if (sbac != NULL)
 	{
 		SBApplication *mailApp;
-		if (kCFCoreFoundationVersionNumber > UIKitVersionNumber_iOS_7_1_2) {
-			mailApp = [[sbac sharedInstance] applicationWithBundleIdentifier:@"com.apple.mobilemail"];
-		} else {
-			mailApp = [[sbac sharedInstance] applicationWithDisplayIdentifier:@"com.apple.mobilemail"];
-		}
+		mailApp = [[sbac sharedInstance] applicationWithBundleIdentifier:@"com.apple.mobilemail"];
 		if (mailApp != NULL)
 		{
 			SBApplicationIcon *mailAppIcon = [[%c(SBApplicationIcon) alloc] initWithApplication:mailApp];
@@ -771,21 +857,12 @@ static void IconSettingsChanged()
 	if (!preferences.enabled)
 	{
 		// isAirPlay = isAirPlayActive();
-		if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
-			SetSystemIcon(@"UIStatusBarBluetoothItemView (Right)", isBluetooth);
-			SetSystemIcon(@"UIStatusBarIndicatorItemView:Alarm (Right)", isAlarm);
-			SetSystemIcon(@"UIStatusBarIndicatorItemView:AirPlay (Right)", isAirPlay, true); //reset
-			SetSystemIcon(@"UIStatusBarQuietModeItemView:QuietMode (Right)", isQuiet);
-			SetSystemIcon(@"UIStatusBarIndicatorItemView:RotationLock (Right)", isRotation);
-			SetSystemIcon(@"UIStatusBarIndicatorItemView:VPN (Left)", isVPN);
-		} else {
-			SetSystemIcon(@"Bluetooth (Right)", isBluetooth);
-			SetSystemIcon(@"Alarm (Right)", isAlarm);
-			SetSystemIcon(@"AirPlay (Right)", isAirPlay, true); //reset
-			SetSystemIcon(@"QuietMode (Right)", isQuiet);
-			SetSystemIcon(@"RotationLock (Right)", isRotation);
-			SetSystemIcon(@"VPN (Left/Right)", isVPN);
-		}
+		SetSystemIcon(@"UIStatusBarBluetoothItemView (Right)", isBluetooth);
+		SetSystemIcon(@"UIStatusBarIndicatorItemView:Alarm (Right)", isAlarm);
+		SetSystemIcon(@"UIStatusBarIndicatorItemView:AirPlay (Right)", isAirPlay, true); //reset
+		SetSystemIcon(@"UIStatusBarQuietModeItemView:QuietMode (Right)", isQuiet);
+		SetSystemIcon(@"UIStatusBarIndicatorItemView:RotationLock (Right)", isRotation);
+		SetSystemIcon(@"UIStatusBarIndicatorItemView:VPN (Left)", isVPN);
 		return;
 	}
 
@@ -809,7 +886,11 @@ static void IconSettingsChanged()
 	}];
 
 	[trackedNotifications.allKeys enumerateObjectsUsingBlock: ^(id key, NSUInteger index, BOOL* stop){
-		ProcessApplicationIcon(key, 1);
+		if ([key isEqualToString:@"Notification Center Icon"]) {
+			UpdateNotificationCenterIcon();
+		} else {
+			ProcessApplicationIcon(key, 1);
+		}
 	}];
 
 	for (BluetoothDevice* device in [[%c(BluetoothManager) sharedInstance] connectedDevices]) {
@@ -823,11 +904,7 @@ static void InitBadges()
 	if ([%c(SBIconViewMap) respondsToSelector:@selector(homescreenMap)]) {
 		for (NSString *identifier in [[[%c(SBIconViewMap) homescreenMap] iconModel] visibleIconIdentifiers]) {
 			SBIcon *icon;
-			if (kCFCoreFoundationVersionNumber > UIKitVersionNumber_iOS_7_1_2) {
-				icon = (SBIcon *)[[[%c(SBIconViewMap) homescreenMap] iconModel] applicationIconForBundleIdentifier:identifier];
-			} else {
-				icon = (SBIcon *)[[[%c(SBIconViewMap) homescreenMap] iconModel] applicationIconForDisplayIdentifier:identifier];
-			}
+			icon = (SBIcon *)[[[%c(SBIconViewMap) homescreenMap] iconModel] applicationIconForBundleIdentifier:identifier];
 			if (icon && [icon badgeNumberOrString] && ([[icon badgeNumberOrString] intValue] > 0)) {
 				[trackedBadges setObject:NSBool(YES) forKey:identifier];
 				[trackedBadgeCount setObject:[icon badgeNumberOrString] forKey:identifier];
@@ -849,28 +926,43 @@ static void InitBadges()
 		}
 	}
 
-	SBNotificationCenterController *nc = (SBNotificationCenterController *)[%c(SBNotificationCenterController) sharedInstance];
-	if (nc)
-	{
-		SBBulletinObserverViewController *observer = nil;
-		SBNotificationCenterLayoutViewController *layoutViewController(MSHookIvar<SBNotificationCenterLayoutViewController *>(nc.viewController, "_layoutViewController"));
-		if (layoutViewController) {
-			observer = (SBBulletinObserverViewController *)layoutViewController.notificationsViewController;
-		}
-		id section;
-		if ((section = [observer firstSection]) != nil)
-		{
-			id section = [observer firstSection];
-			while (section)
-			{
-				bool showBadge = [observer _numberOfBulletinsInSection:section] > 0;
-				[trackedNotifications setObject:[NSNumber numberWithBool:showBadge] forKey:section];
-				[trackedNotificationCount setObject:[NSNumber numberWithInteger:[observer _numberOfBulletinsInSection:section]] forKey:section];
-				if (preferences.enabled) ProcessApplicationIcon(section, 1);
-				section = [observer sectionAfterSection:section];
-			}
+	if (bulletinNotificationSource) {
+		NCNotificationDispatcher *notificationDispatcher = bulletinNotificationSource.dispatcher;
+		NCNotificationStore *notificationStore = notificationDispatcher.notificationStore;
+
+		for (NSString *sectionID in notificationStore.notificationSections.allKeys) {
+			NCNotificationSection *notificationSection = [notificationStore.notificationSections objectForKey:sectionID];
+			if (!notificationSection) continue;
+			long count = (long)notificationSection.notificationsCount;
+			bool showBadge = count > 0;
+			[trackedNotifications setObject:[NSNumber numberWithBool:showBadge] sectionID:sectionID];
+			[trackedNotificationCount setObject:[NSNumber numberWithInteger:count] forKey:sectionID];
+			ProcessApplicationIcon(sectionID, 1);
 		}
 	}
+
+	// iOS10_Temp
+	// else {
+	// 	SBNotificationCenterController *nc = (SBNotificationCenterController *)[%c(SBNotificationCenterController) sharedInstance];
+	// 	if (nc)	{
+	// 		SBBulletinObserverViewController *observer = nil;
+	// 		SBNotificationCenterLayoutViewController *layoutViewController(MSHookIvar<SBNotificationCenterLayoutViewController *>(nc.viewController, "_layoutViewController"));
+	// 		if (layoutViewController) {
+	// 			observer = (SBBulletinObserverViewController *)layoutViewController.notificationsViewController;
+	// 		}
+	// 		id section;
+	// 		if ((section = [observer firstSection]) != nil) {
+	// 			id section = [observer firstSection];
+	// 			while (section) {
+	// 				bool showBadge = [observer _numberOfBulletinsInSection:section] > 0;
+	// 				[trackedNotifications setObject:[NSNumber numberWithBool:showBadge] forKey:section];
+	// 				[trackedNotificationCount setObject:[NSNumber numberWithInteger:[observer _numberOfBulletinsInSection:section]] forKey:section];
+	// 				ProcessApplicationIcon(section, 1);
+	// 				section = [observer sectionAfterSection:section];
+	// 			}
+	// 		}
+	// 	}
+	// }
 }
 #pragma mark #endregion
 
@@ -922,8 +1014,11 @@ static void InitBadges()
 	NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
 	// ReloadSettings();
 	NSMutableArray* imageNames = [NSMutableArray arrayWithArray:[[NSFileManager defaultManager]
-		contentsOfDirectoryAtPath:@"/System/Library/Frameworks/UIKit.framework/" error:nil]
+		contentsOfDirectoryAtPath:@"/System/Library/Frameworks/UIKit.framework/libmoorecon" error:nil]
 	];
+	[imageNames addObjectsFromArray:[NSMutableArray arrayWithArray:[[NSFileManager defaultManager]
+		contentsOfDirectoryAtPath:@"/System/Library/Frameworks/UIKit.framework/" error:nil]
+	]];
 
 	NSRegularExpression* regex = [NSRegularExpression regularExpressionWithPattern:IconRegexPattern
 		options:NSRegularExpressionCaseInsensitive error:nil];
@@ -976,6 +1071,7 @@ static void InitBadges()
 	AddObserver((CFStringRef)VPNModeChangedNotification, VPNModeSettingsChanged);
 	AddObserver((CFStringRef)WatchModeChangedNotification, WatchModeSettingsChanged);
 	AddObserver((CFStringRef)WiFiCallingModeChangedNotification, WiFiCallingModeSettingsChanged);
+	AddObserver((CFStringRef)NotificationCenterModeChangedNotification, NotificationCenterModeSettingsChanged);
 
 	AddObserver((CFStringRef)HideMailChangedNotification, HideMailSettingsChanged);
 
@@ -1153,37 +1249,51 @@ static void InitBadges()
 	[trackedBadgeCount setObject:showBadge ? badgeCopy : @"0" forKey:self.bundleIdentifier];
 	if (preferences.enabled)
 	{
-		// dispatch_after(dispatch_time(DISPATCH_TIME_NOW, processInterval * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
-			ProcessApplicationIcon(self.bundleIdentifier);
-		// });
+		ProcessApplicationIcon(self.bundleIdentifier);
 	}
 }
 %end
 #pragma mark #endregion
 
 #pragma mark #region [ BBServer ]
-%hook SBBulletinObserverViewController
-- (void)_removeBulletin:(id)bulletinInfo fromSection:(id)sectionInfo
+%hook BBServer
+- (void)publishBulletin:(BBBulletin*)bulletin destinations:(NSUInteger)arg2 alwaysToLockScreen:(BOOL)arg3
 {
 	%orig;
 	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
-		Log(@"removeBulletin\n%@\n%@\n%@\n%@", bulletinInfo, sectionInfo, [sectionInfo class], [bulletinInfo class]);
-
-		if (kCFCoreFoundationVersionNumber > UIKitVersionNumber_iOS_7_1_2) {
-			if (![sectionInfo isKindOfClass:%c(SBNotificationCenterSectionInfo)] || ![bulletinInfo isKindOfClass:%c(SBBBBulletinInfo)]) {
-				return;
-			}
-		} else {
-			if (![sectionInfo isKindOfClass:%c(SBNotificationsSectionInfo)] || ![bulletinInfo isKindOfClass:%c(SBNotificationsAllModeBulletinInfo)]) {
-				return;
-			}
+		if (![bulletin isKindOfClass:%c(BBBulletin)]) {
+			return;
 		}
 
-		NSString *section = [[sectionInfo representedListSection] sectionID];
-		int count = [self _numberOfBulletinsInSection:sectionInfo];
-		bool showBadge = count > 0;
+		NSString *section = bulletin.sectionID;
+		NSArray *bulletins = [self allBulletinIDsForSectionID:section];
+		bool showBadge = bulletins.count > 0;
 		[trackedNotifications setObject:[NSNumber numberWithBool:showBadge] forKey:section];
-		[trackedNotificationCount setObject:[NSNumber numberWithInteger:count] forKey:section];
+		[trackedNotificationCount setObject:[NSNumber numberWithInteger:bulletins.count] forKey:section];
+		// if (preferences.enabled) ProcessApplicationIcon(section, 1); iOS10_Temp
+	});
+}
+
+/* Doesn't seem to fire on iOS10_Temp
+-(void)_removeBulletin:(BBBulletin*)bulletin shouldSync:(BOOL)arg2
+{
+	%orig;
+
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+		BBSectionInfo *sectionInfo = [bulletinNotificationSource _sectionInfoForBulletin:bulletin];
+
+		NSString *sectionID = sectionInfo.sectionID;
+		NCNotificationDispatcher *notificationDispatcher = bulletinNotificationSource.dispatcher;
+		NCNotificationStore *notificationStore = notificationDispatcher.notificationStore;
+		NCNotificationSection *notificationSection = [notificationStore.notificationSections objectForKey:sectionID];
+		long count = 0;
+		if (notificationSection) {
+			count = (long)notificationSection.notificationsCount;
+			// count = (long)notificationSection.coalescedNotifications.count;
+		}
+		bool showBadge = count > 0;
+		[trackedNotifications setObject:[NSNumber numberWithBool:showBadge] forKey:sectionID];
+		[trackedNotificationCount setObject:[NSNumber numberWithInteger:count] forKey:sectionID];
 		if (preferences.enabled)
 		{
 			NSTimeInterval timeDiff = [lastProcessDateNC timeIntervalSinceDate:[NSDate date]];
@@ -1193,33 +1303,12 @@ static void InitBadges()
 			}
 			[lastProcessDateNC release];
 			lastProcessDateNC = [[NSDate dateWithTimeInterval:processInterval sinceDate:[NSDate date]] retain];
-			dispatch_after(dispatch_time(DISPATCH_TIME_NOW, processInterval * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
-				ProcessApplicationIcon(section, 1);
+			dispatch_after(dispatch_time(DISPATCH_TIME_NOW, processInterval * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) { iOS10_Temp
+				ProcessApplicationIcon(sectionID, 1);
 			});
 		}
 	});
-}
-%end
-
-%hook BBServer
-- (void)publishBulletin:(BBBulletin*)bulletin destinations:(unsigned long long)arg2 alwaysToLockScreen:(BOOL)arg3
-{
-	%orig;
-	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
-		Log(@"publishBulletin\n%@", bulletin);
-
-		if (![bulletin isKindOfClass:%c(BBBulletin)]) {
-			return;
-		}
-
-		NSString *section = bulletin.sectionID;
-		NSArray *bulletins = [self noticesBulletinIDsForSectionID:section];
-		bool showBadge = bulletins.count > 0;
-		[trackedNotifications setObject:[NSNumber numberWithBool:showBadge] forKey:section];
-		[trackedNotificationCount setObject:[NSNumber numberWithInteger:bulletins.count] forKey:section];
-		if (preferences.enabled) ProcessApplicationIcon(section, 1);
-	});
-}
+}*/
 %end
 #pragma mark #endregion
 %end //group All
@@ -1252,35 +1341,92 @@ static void InitBadges()
 %end
 %end
 
-%group iOS7
-%hook SBCCSettingsSectionController
--(void)_setDNDEnabled:(BOOL)arg1 updateServer:(BOOL)arg2
+%group iOS10
+%hook NCNotificationSectionListViewController
+%new
+- (void)ONUpdateNotificationCenterIcon
 {
-	isQuiet = arg1;
-	%orig;
-	if (preferences.quietModeEnabled && preferences.enabled)
-	{
-		UpdateQuietIcon();
+	int count = 0;
+	if ([self hasContent]) {
+		id sectionList = [self sectionList]; // sectionList = NCNotificationChronologicalList
+
+		// iOS10_Temp - Way too slow and doesn't return an accurate count of visible items in the NC (returns some invisible items)
+		// NSString *sectionID = notificationRequest.sectionIdentifier;
+		// for (NCNotificationRequest *request in [sectionList allNotificationRequests]) {
+		// 	if ([request.sectionIdentifier isEqualToString:sectionID]) {
+		// 		count++;
+		// 	}
+		// }
+		//
+		// int showBadge = preferences.notificationCenterModeEnabled && count > 0 ? count : 0;
+		// [trackedNotifications setObject:[NSNumber numberWithBool:showBadge] forKey:sectionID];
+		// [trackedNotificationCount setObject:[NSNumber numberWithInteger:count] forKey:sectionID];
+		// if (preferences.enabled)
+		// {
+		// 	NSTimeInterval timeDiff = [lastProcessDateNC timeIntervalSinceDate:[NSDate date]];
+		// 	float processInterval = 0;
+		// 	if (timeDiff > -0.5) {
+		// 		processInterval = timeDiff + 0.5;
+		// 	}
+		// 	[lastProcessDateNC release];
+		// 	lastProcessDateNC = [[NSDate dateWithTimeInterval:processInterval sinceDate:[NSDate date]] retain];
+		// 	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, processInterval * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+		// 		ProcessApplicationIcon(sectionID, 1);
+		// 	});
+		// }
+		//
+		// count = 0;
+		for (int i = 0; i < [sectionList sectionCount]; i++) {
+			count += [sectionList rowCountForSectionIndex:i];
+		}
 	}
+
+	NSString *sectionID = @"Notification Center Icon";
+	int showBadge = preferences.notificationCenterModeEnabled && count > 0 ? count : 0;
+	[trackedNotifications setObject:[NSNumber numberWithBool:showBadge] forKey:sectionID];
+	[trackedNotificationCount setObject:[NSNumber numberWithInteger:count] forKey:sectionID];
+	if (preferences.enabled) {
+		NSTimeInterval timeDiff = [lastProcessDateNC timeIntervalSinceDate:[NSDate date]];
+		float processInterval = 0;
+		if (timeDiff > -0.5) {
+			processInterval = timeDiff + 0.5;
+		}
+		[lastProcessDateNC release];
+		lastProcessDateNC = [[NSDate dateWithTimeInterval:processInterval sinceDate:[NSDate date]] retain];
+		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, processInterval * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+			ProcessSystemIcon(sectionID, showBadge, @"");
+		});
+	}
+}
+
+- (BOOL)insertNotificationRequest:(NCNotificationRequest *)notificationRequest forCoalescedNotification:(id)arg2
+{
+	BOOL ret = %orig;
+
+	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(ONUpdateNotificationCenterIcon) object:nil];
+	[self performSelector:@selector(ONUpdateNotificationCenterIcon) withObject:nil afterDelay:2];
+
+	return ret;
+}
+
+- (void)removeNotificationRequest:(NCNotificationRequest *)notificationRequest forCoalescedNotification:(id)arg2
+{
+	%orig;
+
+	[NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(ONUpdateNotificationCenterIcon) object:nil];
+	[self performSelector:@selector(ONUpdateNotificationCenterIcon) withObject:nil afterDelay:2];
 }
 %end
 
-#pragma mark #region [ SBTelephonyManager_iOS7 ]
-%hook SBTelephonyManager
--(void)setIsNetworkTethering:(BOOL)arg1 withNumberOfDevices:(int)arg2
+%hook NCBulletinNotificationSource
+- (id)initWithDispatcher:(id)arg1
 {
-	%orig;
-	if (!changeTether)
-	{
-		UpdateTetherIcon();
-	}
+	bulletinNotificationSource = %orig;
+	return bulletinNotificationSource;
 }
 %end
-#pragma mark #endregion
-%end
 
-%group iOS8
-%hook SBCCDoNotDisturbSetting
+%hook CCUIDoNotDisturbSetting
 -(void)_setDNDEnabled:(BOOL)arg1 updateServer:(BOOL)arg2 source:(unsigned long)arg3
 {
 	isQuiet = arg1;
@@ -1291,7 +1437,9 @@ static void InitBadges()
 	}
 }
 %end
+%end // iOS10
 
+%group iOS8_10
 #pragma mark #region [ SBTelephonyManager_iOS8 ]
 %hook SBTelephonyManager
 -(void)_setIsNetworkTethering:(BOOL)arg1 withNumberOfDevices:(int)arg2
@@ -1334,11 +1482,7 @@ static void InitBadges()
 		ReloadSettings();
 		%init(All);
 		%init(Group_InCallService);
-
-		if (kCFCoreFoundationVersionNumber > UIKitVersionNumber_iOS_7_1_2) {
-			%init(iOS8);
-		} else {
-			%init(iOS7);
-		}
+		%init(iOS10);
+		%init(iOS8_10);
 	}
 }

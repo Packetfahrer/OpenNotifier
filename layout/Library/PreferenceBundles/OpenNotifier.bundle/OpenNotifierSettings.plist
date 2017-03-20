@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>title</key>
-	<string>OpenNotifier9</string>
+	<string>OpenNotifier10</string>
 	<key>items</key>
 	<array>
 		<dict>
@@ -48,9 +48,12 @@
 			<key>id</key>
 			<string>ONGlobalUseBadges</string>
 			<key>label</key>
-			<string>Use Icon Badges</string>
+			<!-- iOS10_Temp<string>Use Icon Badges</string>-->
+			<string>Disabled</string>
 			<key>default</key>
 			<false/>
+			<key>enabled</key>
+			<false/><!-- iOS10_Temp -->
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -58,9 +61,12 @@
 			<key>id</key>
 			<string>ONGlobalUseNotifications</string>
 			<key>label</key>
-			<string>Use Notification Center</string>
+			<!-- iOS10_Temp<string>Use Notification Center</string>-->
+			<string>Disabled</string>
 			<key>default</key>
 			<false/>
+			<key>enabled</key>
+			<false/><!-- iOS10_Temp -->
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -189,6 +195,16 @@
 			<string>ONLowPowerModeIcon</string>
 			<key>label</key>
 			<string>Low Power Icon</string>
+			<key>default</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONNotificationCenterModeIcon</string>
+			<key>label</key>
+			<string>Notification Center Icon</string>
 			<key>default</key>
 			<false/>
 		</dict>

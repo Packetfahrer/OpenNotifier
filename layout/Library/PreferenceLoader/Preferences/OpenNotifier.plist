@@ -6,7 +6,7 @@
 		icon = OpenNotifier.png;
 		detail = OpenNotifierSettingsRootController;
 		isController = 1;
-		label = "OpenNotifier9";
+		label = "OpenNotifier10";
 	};
 }
 

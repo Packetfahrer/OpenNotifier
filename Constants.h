@@ -64,7 +64,9 @@ NSString* const ONWatchModeEnabledKey = @"ONWatchModeIcon";
 NSString* const ONWiFiCallingKey = @"WiFiCalling";
 NSString* const ONWiFiCallingIconLeftKey = @"ONWiFiCallingIconLeft";
 NSString* const ONWiFiCallingModeEnabledKey = @"ONWiFiCallingModeIcon";
-
+NSString* const ONNotificationCenterKey = @"NotificationCenter";
+NSString* const ONNotificationCenterIconLeftKey = @"ONNotificationCenterIconLeft";
+NSString* const ONNotificationCenterModeEnabledKey = @"ONNotificationCenterModeIcon";
 NSString* const ONHideMailKey = @"ONHideMail";
 
 NSString* const IconRegexPattern = @"(?:Silver|Black)_ON_(.*?)(?:@.*|)(?:~.*|).png";
@@ -85,4 +87,5 @@ NSString* const RotationLockModeChangedNotification = @"opennotifier.rotationLoc
 NSString* const VPNModeChangedNotification = @"opennotifier.vPNModeChanged";
 NSString* const WatchModeChangedNotification = @"opennotifier.watchModeChanged";
 NSString* const WiFiCallingModeChangedNotification = @"opennotifier.wiFiCallingModeChanged";
+NSString* const NotificationCenterModeChangedNotification = @"opennotifier.notificationCenterModeChanged";
 NSString* const HideMailChangedNotification = @"opennotifier.hideMailChanged";

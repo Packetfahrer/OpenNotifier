@@ -72,6 +72,8 @@ typedef NSUInteger ONIconAlignment;
 @property(assign) bool watchIconOnLeft;
 @property(assign) bool wiFiCallingModeEnabled;
 @property(assign) bool wiFiCallingIconOnLeft;
+@property(assign) bool notificationCenterModeEnabled;
+@property(assign) bool notificationCenterIconOnLeft;
 @property(assign) bool hideMail;
 
 +(id)sharedInstance;
