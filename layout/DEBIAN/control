@@ -1,6 +1,6 @@
 Package: net.tateu.opennotifier9
 Name: OpenNotifier9 - tateu
-Version: 2.5.0~beta18-1
+Version: 2.5.0~beta18-2
 Provides: com.n00neimp0rtant.opennotifier, net.tateu.opennotifier
 Conflicts: com.n00neimp0rtant.opennotifier, net.tateu.opennotifier, net.tateu.opennotifierbeta
 Depends: firmware (>=9.0), mobilesubstrate, libstatusbar, preferenceloader, applist

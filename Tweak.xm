@@ -264,8 +264,10 @@ static void ProcessApplicationIcon(NSString* identifier, int type = 0) //0 = bad
 			[apps addObject:identifier];
 			[uniqueIcon setObject:apps forKey:ONApplicationsKey];
 
-			if (![uniqueIcon.allKeys containsObject:ONIconNameKey] || isCountIcon)
+			if (![uniqueIcon.allKeys containsObject:ONIconNameKey])
 				[uniqueIcon setObject:CreateStatusBarItem(uniqueName, name, onLeft) forKey:ONIconNameKey];
+			else if (isCountIcon)
+				((LSStatusBarItem *)[uniqueIcon objectForKey:ONIconNameKey]).imageName = [NSString stringWithFormat:@"ON_%@", name];
 
 			[statusBarItems setObject:uniqueIcon forKey:uniqueName];
 		}
