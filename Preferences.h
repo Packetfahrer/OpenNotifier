@@ -21,6 +21,7 @@ typedef NSUInteger ONIconAlignment;
 	NSMutableDictionary* _dictionary;
 }
 @property(retain, nonatomic) NSMutableDictionary* icons;
+@property(nonatomic) int useBadges;
 @property(nonatomic) int useNotifications;
 -(NSMutableDictionary*)toDictionary;
 -(bool)containsIcon:(NSString*)iconName;
@@ -55,6 +56,10 @@ typedef NSUInteger ONIconAlignment;
 @property(assign) bool bluetoothModeEnabled;
 @property(assign) bool bluetoothAlwaysEnabled;
 @property(assign) bool bluetoothIconOnLeft;
+@property(assign) bool lowPowerModeEnabled;
+@property(assign) bool lowPowerIconOnLeft;
+@property(assign) bool phoneMicMutedModeEnabled;
+@property(assign) bool phoneMicMutedIconOnLeft;
 @property(assign) bool quietModeEnabled;
 @property(assign) bool quietModeInverted;
 @property(assign) bool quietIconOnLeft;
@@ -63,13 +68,19 @@ typedef NSUInteger ONIconAlignment;
 @property(assign) bool rotationLockIconOnLeft;
 @property(assign) bool vPNModeEnabled;
 @property(assign) bool vPNIconOnLeft;
+@property(assign) bool watchModeEnabled;
+@property(assign) bool watchIconOnLeft;
+@property(assign) bool wiFiCallingModeEnabled;
+@property(assign) bool wiFiCallingIconOnLeft;
 @property(assign) bool hideMail;
 
 +(id)sharedInstance;
 
 -(ONApplication*)getApplication:(NSString*)identifer;
+-(NSArray*)getBluetoothIdentifers;
 -(void)removeApplication:(NSString*)identifer;
 
+-(void)addUseBadges:(BOOL)useBadges forApplication:(NSString*)identifer;
 -(void)addUseNotifications:(BOOL)useNotifications forApplication:(NSString*)identifer;
 -(id)addIcon:(NSString*)iconName forApplication:(NSString*)identifer;
 -(void)removeIcon:(NSString*)iconName fromApplication:(NSString*)identifer;

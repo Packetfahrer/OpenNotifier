@@ -30,6 +30,8 @@
 -(void)dealloc;
 -(id)init;
 -(BOOL)isLocked;
+-(BOOL)isUserLocked; // iOS 9.2x
+-(BOOL)isEffectivelyLocked; // iOS 9.2x
 -(void)lock;
 -(void)unlock;
 @end

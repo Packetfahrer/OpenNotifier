@@ -3,16 +3,14 @@
 <plist version="1.0">
 <dict>
 	<key>title</key>
-	<string>OpenNotifier</string>
+	<string>OpenNotifier9</string>
 	<key>items</key>
 	<array>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>General</string>
-			<key>footerText</key>
-			<string>Global Settings</string>
+			<string>General - Global</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -50,7 +48,7 @@
 			<key>id</key>
 			<string>ONGlobalUseBadges</string>
 			<key>label</key>
-			<string>Use Badges</string>
+			<string>Use Icon Badges</string>
 			<key>default</key>
 			<false/>
 		</dict>
@@ -66,27 +64,41 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>footerText</key>
-			<string>Show system icons on the status bar.</string>
+			<string>PSLinkCell</string>
+			<key>detail</key>
+			<string>OpenNotifierAppsController</string>
+			<key>label</key>
+			<string>Applications</string>
 		</dict>
-<!-- 		<dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>detail</key>
+			<string>ONBluetoothController</string>
+			<key>label</key>
+			<string>Bluetooth Devices</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>detail</key>
+			<string>ONProfileController</string>
+			<key>label</key>
+			<string>Profiles</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>System Icons</string>
+		</dict>
+		<!-- <dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>id</key>
 			<string>ONAirplaneModeIcon</string>
 			<key>label</key>
 			<string>Airplane Mode Icon</string>
-			<key>default</key>
-			<false/>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>id</key>
-			<string>ONAirplaneIconLeft</string>
-			<key>label</key>
-			<string>    ↳ Align Left</string>
 			<key>default</key>
 			<false/>
 		</dict> -->
@@ -100,23 +112,13 @@
 			<key>default</key>
 			<false/>
 		</dict>
- <!--		<dict>
+	 	<!-- <dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>id</key>
 			<string>ONAirPlayAlways</string>
 			<key>label</key>
 			<string>    Icon Always On</string>
-			<key>default</key>
-			<false/>
-		</dict> -->
-<!--		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>id</key>
-			<string>ONAirPlayIconLeft</string>
-			<key>label</key>
-			<string>    ↳ Align Left</string>
 			<key>default</key>
 			<false/>
 		</dict> -->
@@ -140,16 +142,6 @@
 			<key>default</key>
 			<true/>
 		</dict>
-<!--		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>id</key>
-			<string>ONAlarmIconLeft</string>
-			<key>label</key>
-			<string>    ↳ Align Left</string>
-			<key>default</key>
-			<false/>
-		</dict> -->
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
@@ -170,16 +162,6 @@
 			<key>default</key>
 			<true/>
 		</dict>
-<!--		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>id</key>
-			<string>ONBluetoothIconLeft</string>
-			<key>label</key>
-			<string>    ↳ Align Left</string>
-			<key>default</key>
-			<false/>
-		</dict> -->
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
@@ -200,16 +182,26 @@
 			<key>default</key>
 			<true/>
 		</dict>
-<!--		<dict>
+		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>id</key>
-			<string>ONQuietIconLeft</string>
+			<string>ONLowPowerModeIcon</string>
 			<key>label</key>
-			<string>    ↳ Align Left</string>
+			<string>Low Power Icon</string>
 			<key>default</key>
 			<false/>
-		</dict> -->
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONPhoneMicMutedModeIcon</string>
+			<key>label</key>
+			<string>Phone Mic Muted Icon</string>
+			<key>default</key>
+			<false/>
+		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
@@ -230,16 +222,6 @@
 			<key>default</key>
 			<true/>
 		</dict>
-<!--		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>id</key>
-			<string>ONRotationLockIconLeft</string>
-			<key>label</key>
-			<string>    ↳ Align Left</string>
-			<key>default</key>
-			<false/>
-		</dict> -->		
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
@@ -260,16 +242,6 @@
 			<key>default</key>
 			<true/>
 		</dict>
-<!--		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>id</key>
-			<string>ONSilentIconLeft</string>
-			<key>label</key>
-			<string>    ↳ Align Left</string>
-			<key>default</key>
-			<false/>
-		</dict> -->
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
@@ -280,16 +252,6 @@
 			<key>default</key>
 			<false/>
 		</dict>
-<!--		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>id</key>
-			<string>ONTetherIconLeft</string>
-			<key>label</key>
-			<string>    ↳ Align Left</string>
-			<key>default</key>
-			<false/>
-		</dict> -->
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
@@ -310,16 +272,6 @@
 			<key>default</key>
 			<true/>
 		</dict>
-<!--		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>id</key>
-			<string>ONVibrateIconLeft</string>
-			<key>label</key>
-			<string>    ↳ Align Left</string>
-			<key>default</key>
-			<false/>
-		</dict> -->
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
@@ -330,37 +282,25 @@
 			<key>default</key>
 			<false/>
 		</dict>
-<!--		<dict>
+		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>id</key>
-			<string>ONVPNIconLeft</string>
+			<string>ONWatchModeIcon</string>
 			<key>label</key>
-			<string>    ↳ Align Left</string>
+			<string>Watch Icon</string>
 			<key>default</key>
 			<false/>
-		</dict> -->
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>footerText</key>
-			<string></string>
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>detail</key>
-			<string>OpenNotifierAppsController</string>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONWiFiCallingModeIcon</string>
 			<key>label</key>
-			<string>Apps</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>detail</key>
-			<string>SystemIconsController</string>
-			<key>label</key>
-			<string>System Icons</string>
+			<string>WiFi Calling Icon</string>
+			<key>default</key>
+			<false/>
 		</dict>
 	</array>
 </dict>

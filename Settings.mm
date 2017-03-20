@@ -2,6 +2,7 @@
 #import "Preferences.h"
 #import <UIKit/UIKit.h>
 #import <UIKit/UISearchBar2.h>
+#import <objc/runtime.h>
 
 
 #pragma mark #region [ Preferences Keys ]
@@ -58,25 +59,33 @@ static NSMutableArray* statusIcons;
 	icon = [UIImage imageWithContentsOfFile:[NSString stringWithFormat:@"%@/Silver_ON_%@.png", iconPath, name]];
 	if (!icon) icon = defaultIcon;
 
-	float maxWidth = 20.0f;
-	float maxHeight = 20.0f;
+	float maxWidth = 40.0f;
+	float maxHeight = 40.0f;
 
 	CGSize size = CGSizeMake(maxWidth, maxHeight);
 	CGFloat scale = 1.0f;
 
 	// the scale logic below was taken from
 	// http://developer.appcelerator.com/question/133826/detecting-new-ipad-3-dpi-and-retina
-	if ([[UIScreen mainScreen] respondsToSelector:@selector(displayLinkWithTarget:selector:)])
-	{
+	// if ([[UIScreen mainScreen] respondsToSelector:@selector(displayLinkWithTarget:selector:)])
+	// {
 		if ([UIScreen mainScreen].scale > 1.0f) scale = [[UIScreen mainScreen] scale];
 		UIGraphicsBeginImageContextWithOptions(size, false, scale);
-	}
-	else UIGraphicsBeginImageContext(size);
+	// }
+	// else UIGraphicsBeginImageContext(size);
 
 	// Resize image to status bar size and center it
 	// make sure the icon fits within the bounds
-	CGFloat width = MIN(icon.size.width, maxWidth);
-	CGFloat height = MIN(icon.size.height, maxHeight);
+	CGFloat width = maxWidth; //MIN(icon.size.width, maxWidth);
+	CGFloat height = maxHeight; //MIN(icon.size.height, maxHeight);
+
+	if (icon.size.width > icon.size.height) {
+		width = maxWidth;
+		height = width * icon.size.height / icon.size.width;
+	} else {
+		height = maxHeight;
+		width = height * icon.size.width / icon.size.height;
+	}
 
 	CGFloat left = MAX((maxWidth-width)/2, 0);
 	left = left > (maxWidth/2) ? maxWidth-(maxWidth/2) : left;
@@ -97,7 +106,7 @@ static NSMutableArray* statusIcons;
 {
 	if (!(self = [super initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:identifier specifier:specifier])) return nil;
 
-	NSString* name = [specifier propertyForKey:PSIDKey];
+	NSString* name = specifier.identifier;
 
 	ONApplication* app = [preferences getApplication:[specifier propertyForKey:ONAppIdentifierKey]];
 
@@ -126,8 +135,31 @@ static NSMutableArray* statusIcons;
 // █████████████████████████████████████████████████████████████████████████████
 // ██
 #pragma mark #region [ OpenNotifierSettingsRootController ]
+static void AlertMissingIcon(NSString *icon)
+{
+	UIAlertView *alertView = [[UIAlertView alloc] initWithTitle:@"OpenNotifier9" message:[NSString stringWithFormat:@"Make sure you assign an image for the %@ by tapping on the icon name!", icon] delegate:nil cancelButtonTitle:@"Ok" otherButtonTitles:nil];
+	[alertView show];
+	[alertView release];
+}
+
 @implementation OpenNotifierSettingsRootController
--(id)init
+- (void)viewDidLoad
+{
+	[super viewDidLoad];
+	if (!self.table.tableHeaderView) {
+		self.table.tableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0f, 0.0f, CGFLOAT_MIN)];
+	}
+}
+
+-(void)viewWillAppear:(BOOL)animated
+{
+	if (!preferences) preferences = ONPreferences.sharedInstance;
+	else [preferences reload];
+	[super viewWillAppear:animated];
+	[self reload];
+}
+
+- (id)init
 {
 	if (!(self = [super init])) return nil;
 	preferences = ONPreferences.sharedInstance;
@@ -150,7 +182,7 @@ static NSMutableArray* statusIcons;
 
 -(id)readPreferenceValue:(PSSpecifier*)specifier
 {
-	NSString* key = [specifier propertyForKey:PSIDKey];
+	NSString* key = specifier.identifier;
 
 	if ([key isEqualToString:ONEnabledKey]) return NSBool(preferences.enabled);
 	if ([key isEqualToString:ONGlobalUseBadgesKey]) return NSBool(preferences.globalUseBadges);
@@ -165,8 +197,8 @@ static NSMutableArray* statusIcons;
 	if ([key isEqualToString:ONVibrateIconLeftKey]) return NSBool(preferences.vibrateIconOnLeft);
 	if ([key isEqualToString:ONTetherModeEnabledKey]) return NSBool(preferences.tetherModeEnabled);
 	if ([key isEqualToString:ONTetherIconLeftKey]) return NSBool(preferences.tetherIconOnLeft);
-//	if ([key isEqualToString:ONAirplaneModeEnabledKey]) return NSBool(preferences.airplaneModeEnabled);
-//	if ([key isEqualToString:ONAirplaneIconLeftKey]) return NSBool(preferences.airplaneIconOnLeft);
+	// if ([key isEqualToString:ONAirplaneModeEnabledKey]) return NSBool(preferences.airplaneModeEnabled);
+	// if ([key isEqualToString:ONAirplaneIconLeftKey]) return NSBool(preferences.airplaneIconOnLeft);
 	if ([key isEqualToString:ONAirPlayModeEnabledKey]) return NSBool(preferences.airPlayModeEnabled);
 	if ([key isEqualToString:ONAirPlayAlwaysEnabledKey]) return NSBool(preferences.airPlayAlwaysEnabled);
 	if ([key isEqualToString:ONAirPlayIconLeftKey]) return NSBool(preferences.airPlayIconOnLeft);
@@ -176,6 +208,10 @@ static NSMutableArray* statusIcons;
 	if ([key isEqualToString:ONBluetoothModeEnabledKey]) return NSBool(preferences.bluetoothModeEnabled);
 	if ([key isEqualToString:ONBluetoothAlwaysEnabledKey]) return NSBool(preferences.bluetoothAlwaysEnabled);
 	if ([key isEqualToString:ONBluetoothIconLeftKey]) return NSBool(preferences.bluetoothIconOnLeft);
+	if ([key isEqualToString:ONLowPowerModeEnabledKey]) return NSBool(preferences.lowPowerModeEnabled);
+	if ([key isEqualToString:ONLowPowerIconLeftKey]) return NSBool(preferences.lowPowerIconOnLeft);
+	if ([key isEqualToString:ONPhoneMicMutedModeEnabledKey]) return NSBool(preferences.phoneMicMutedModeEnabled);
+	if ([key isEqualToString:ONPhoneMicMutedIconLeftKey]) return NSBool(preferences.phoneMicMutedIconOnLeft);
 	if ([key isEqualToString:ONQuietModeEnabledKey]) return NSBool(preferences.quietModeEnabled);
 	if ([key isEqualToString:ONQuietModeInvertedKey]) return NSBool(preferences.quietModeInverted);
 	if ([key isEqualToString:ONQuietIconLeftKey]) return NSBool(preferences.quietIconOnLeft);
@@ -184,46 +220,246 @@ static NSMutableArray* statusIcons;
 	if ([key isEqualToString:ONRotationLockIconLeftKey]) return NSBool(preferences.rotationLockIconOnLeft);
 	if ([key isEqualToString:ONVPNModeEnabledKey]) return NSBool(preferences.vPNModeEnabled);
 	if ([key isEqualToString:ONVPNIconLeftKey]) return NSBool(preferences.vPNIconOnLeft);
+	if ([key isEqualToString:ONWatchModeEnabledKey]) return NSBool(preferences.watchModeEnabled);
+	if ([key isEqualToString:ONWatchIconLeftKey]) return NSBool(preferences.watchIconOnLeft);
+	if ([key isEqualToString:ONWiFiCallingModeEnabledKey]) return NSBool(preferences.wiFiCallingModeEnabled);
+	if ([key isEqualToString:ONWiFiCallingIconLeftKey]) return NSBool(preferences.wiFiCallingIconOnLeft);
 
 	return nil;
 }
 
 -(void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier
 {
-	NSString* key = [specifier propertyForKey:PSIDKey];
+	NSString* key = specifier.identifier;
 
 	if ([key isEqualToString:ONEnabledKey]) preferences.enabled = [value boolValue];
 	if ([key isEqualToString:ONGlobalUseBadgesKey]) preferences.globalUseBadges = [value boolValue];
 	if ([key isEqualToString:ONGlobalUseNotificationsKey]) preferences.globalUseNotifications = [value boolValue];
 	if ([key isEqualToString:ONIconsLeftKey]) preferences.iconsOnLeft = [value boolValue];
 	if ([key isEqualToString:ONHideMailKey]) preferences.hideMail = [value boolValue];
-	if ([key isEqualToString:ONSilentModeEnabledKey]) preferences.silentModeEnabled = [value boolValue];
+	if ([key isEqualToString:ONSilentModeEnabledKey]) {
+		preferences.silentModeEnabled = [value boolValue];
+
+		if (preferences.silentModeEnabled) {
+			NSString *identifier = @"Silent Mode Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
 	if ([key isEqualToString:ONSilentModeInvertedKey]) preferences.silentModeInverted = [value boolValue];
 	if ([key isEqualToString:ONSilentIconLeftKey]) preferences.silentIconOnLeft = [value boolValue];
-	if ([key isEqualToString:ONVibrateModeEnabledKey]) preferences.vibrateModeEnabled = [value boolValue];
+	if ([key isEqualToString:ONVibrateModeEnabledKey]) {
+		preferences.vibrateModeEnabled = [value boolValue];
+
+		if (preferences.vibrateModeEnabled) {
+			NSString *identifier = @"Vibrate Mode Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
 	if ([key isEqualToString:ONVibrateModeInvertedKey]) preferences.vibrateModeInverted = [value boolValue];
 	if ([key isEqualToString:ONVibrateIconLeftKey]) preferences.vibrateIconOnLeft = [value boolValue];
-	if ([key isEqualToString:ONTetherModeEnabledKey]) preferences.tetherModeEnabled = [value boolValue];
+	if ([key isEqualToString:ONTetherModeEnabledKey]) {
+		preferences.tetherModeEnabled = [value boolValue];
+
+		if (preferences.tetherModeEnabled) {
+			NSString *identifier = @"Tether Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
 	if ([key isEqualToString:ONTetherIconLeftKey]) preferences.tetherIconOnLeft = [value boolValue];
-//	if ([key isEqualToString:ONAirplaneModeEnabledKey]) preferences.airplaneModeEnabled = [value boolValue];
-//	if ([key isEqualToString:ONAirplaneIconLeftKey]) preferences.airplaneIconOnLeft = [value boolValue];
-	if ([key isEqualToString:ONAirPlayModeEnabledKey]) preferences.airPlayModeEnabled = [value boolValue];
+	// if ([key isEqualToString:ONAirplaneModeEnabledKey]) preferences.airplaneModeEnabled = [value boolValue];
+	// if ([key isEqualToString:ONAirplaneIconLeftKey]) preferences.airplaneIconOnLeft = [value boolValue];
+	if ([key isEqualToString:ONAirPlayModeEnabledKey]) {
+		preferences.airPlayModeEnabled = [value boolValue];
+
+		if (preferences.airPlayModeEnabled) {
+			NSString *identifier = @"AirPlay Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
 	if ([key isEqualToString:ONAirPlayAlwaysEnabledKey]) preferences.airPlayAlwaysEnabled = [value boolValue];
 	if ([key isEqualToString:ONAirPlayIconLeftKey]) preferences.airPlayIconOnLeft = [value boolValue];
-	if ([key isEqualToString:ONAlarmModeEnabledKey]) preferences.alarmModeEnabled = [value boolValue];
+	if ([key isEqualToString:ONAlarmModeEnabledKey]) {
+		preferences.alarmModeEnabled = [value boolValue];
+
+		if (preferences.alarmModeEnabled) {
+			NSString *identifier = @"Alarm Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
 	if ([key isEqualToString:ONAlarmModeInvertedKey]) preferences.alarmModeInverted = [value boolValue];
 	if ([key isEqualToString:ONAlarmIconLeftKey]) preferences.alarmIconOnLeft = [value boolValue];
-	if ([key isEqualToString:ONBluetoothModeEnabledKey]) preferences.bluetoothModeEnabled = [value boolValue];
+	if ([key isEqualToString:ONBluetoothModeEnabledKey]) {
+		preferences.bluetoothModeEnabled = [value boolValue];
+
+		if (preferences.bluetoothModeEnabled) {
+			NSString *identifier = @"Bluetooth Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
 	if ([key isEqualToString:ONBluetoothAlwaysEnabledKey]) preferences.bluetoothAlwaysEnabled = [value boolValue];
 	if ([key isEqualToString:ONBluetoothIconLeftKey]) preferences.bluetoothIconOnLeft = [value boolValue];
-	if ([key isEqualToString:ONQuietModeEnabledKey]) preferences.quietModeEnabled = [value boolValue];
+	if ([key isEqualToString:ONLowPowerModeEnabledKey]) {
+		preferences.lowPowerModeEnabled = [value boolValue];
+
+		if (preferences.lowPowerModeEnabled) {
+			NSString *identifier = @"Low Power Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
+	if ([key isEqualToString:ONLowPowerIconLeftKey]) preferences.lowPowerIconOnLeft = [value boolValue];
+	if ([key isEqualToString:ONPhoneMicMutedModeEnabledKey]) {
+		preferences.phoneMicMutedModeEnabled = [value boolValue];
+
+		if (preferences.phoneMicMutedModeEnabled) {
+			NSString *identifier = @"Phone Mic Muted Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
+	if ([key isEqualToString:ONPhoneMicMutedIconLeftKey]) preferences.phoneMicMutedIconOnLeft = [value boolValue];
+	if ([key isEqualToString:ONQuietModeEnabledKey]) {
+		preferences.quietModeEnabled = [value boolValue];
+
+		if (preferences.quietModeEnabled) {
+			NSString *identifier = @"Do Not Disturb Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
 	if ([key isEqualToString:ONQuietModeInvertedKey]) preferences.quietModeInverted = [value boolValue];
 	if ([key isEqualToString:ONQuietIconLeftKey]) preferences.quietIconOnLeft = [value boolValue];
-	if ([key isEqualToString:ONRotationLockModeEnabledKey]) preferences.rotationLockModeEnabled = [value boolValue];
+	if ([key isEqualToString:ONRotationLockModeEnabledKey]) {
+		preferences.rotationLockModeEnabled = [value boolValue];
+
+		if (preferences.rotationLockModeEnabled) {
+			NSString *identifier = @"Rotation Lock Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
 	if ([key isEqualToString:ONRotationLockModeInvertedKey]) preferences.rotationLockModeInverted = [value boolValue];
 	if ([key isEqualToString:ONRotationLockIconLeftKey]) preferences.rotationLockIconOnLeft = [value boolValue];
-	if ([key isEqualToString:ONVPNModeEnabledKey]) preferences.vPNModeEnabled = [value boolValue];
+	if ([key isEqualToString:ONVPNModeEnabledKey]) {
+		preferences.vPNModeEnabled = [value boolValue];
+
+		if (preferences.vPNModeEnabled) {
+			NSString *identifier = @"VPN Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
 	if ([key isEqualToString:ONVPNIconLeftKey]) preferences.vPNIconOnLeft = [value boolValue];
+	if ([key isEqualToString:ONWatchModeEnabledKey]) {
+		preferences.watchModeEnabled = [value boolValue];
+
+		if (preferences.watchModeEnabled) {
+			NSString *identifier = @"Watch Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
+	if ([key isEqualToString:ONWatchIconLeftKey]) preferences.watchIconOnLeft = [value boolValue];
+	if ([key isEqualToString:ONWiFiCallingModeEnabledKey]) {
+		preferences.wiFiCallingModeEnabled = [value boolValue];
+
+		if (preferences.wiFiCallingModeEnabled) {
+			NSString *identifier = @"WiFi Calling Icon";
+			ONApplication* app = [preferences getApplication:identifier];
+			if (!app || app.icons.allKeys.count == 0) {
+				AlertMissingIcon(identifier);
+			}
+		}
+	}
+	if ([key isEqualToString:ONWiFiCallingIconLeftKey]) preferences.wiFiCallingIconOnLeft = [value boolValue];
+}
+
+- (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section
+{
+	if (section == 0) {
+		CGSize maximumLabelSize = CGSizeMake([UIScreen mainScreen].bounds.size.width, 120);
+		UIFont *font = [UIFont preferredFontForTextStyle:UIFontTextStyleHeadline];
+		CGRect textRect = [@"General - Global" boundingRectWithSize:maximumLabelSize
+                         options:NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading
+                         attributes:@{NSFontAttributeName:font}
+                         context:nil];
+    	return textRect.size.height + 10;
+	}
+
+	return [super tableView:tableView heightForHeaderInSection:section];
+}
+
+- (BOOL)tableView:(UITableView *)tableView shouldHighlightRowAtIndexPath:(NSIndexPath *)indexPath
+{
+	return YES;
+}
+
+-(UITableViewCell*)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+	UITableViewCell* cell = [super tableView:tableView cellForRowAtIndexPath:indexPath];
+	if (indexPath.section == 1) {
+		if (![cell.textLabel.text hasPrefix:@" "]) {
+			cell.selectionStyle = UITableViewCellSelectionStyleGray;
+		}
+	}
+
+	return cell;
+}
+
+-(void)tableView:(UITableView*)tableView didSelectRowAtIndexPath:(NSIndexPath*)indexPath
+{
+	if (indexPath.section == 1) {
+		UITableViewCell* cell = [tableView cellForRowAtIndexPath:indexPath];
+
+		if (![cell.textLabel.text hasPrefix:@" "]) {
+			// Need to mimic what PSListController does when it handles didSelectRowAtIndexPath
+			// otherwise the child controller won't load
+			OpenNotifierIconsController* controller = [[[OpenNotifierIconsController alloc]
+														initWithAppName:cell.textLabel.text
+														identifier:cell.textLabel.text
+														type:1
+														] autorelease];
+
+			controller.rootController = self.rootController;
+			controller.parentController = self;
+
+			[self pushController:controller];
+			[tableView deselectRowAtIndexPath:indexPath animated:true];
+			return;
+		}
+	}
+
+	[super tableView:tableView didSelectRowAtIndexPath:indexPath];
 }
 
 @end
@@ -268,35 +504,50 @@ static NSMutableArray* statusIcons;
 	"} ";
 
 	NSString* enabledList = @"";
-	for (NSString* identifer in preferences.applications.allKeys)
+	for (NSString* identifier in preferences.applications.allKeys)
 	{
-		ONApplication* app = [preferences getApplication:identifer];
+		ONApplication* app = [preferences getApplication:identifier];
 		if (app && [[app.icons allKeys] count])
 		{
-			enabledList = [enabledList stringByAppendingString:[NSString stringWithFormat:@"'%@',", identifer]];
+			enabledList = [enabledList stringByAppendingString:[NSString stringWithFormat:@"'%@',", identifier]];
 		}
 	}
 	enabledList = [enabledList stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@","]];
 	NSString* filter = (searchText && searchText.length > 0)
-					 ? [NSString stringWithFormat:@"displayName beginsWith[cd] '%@' %@", searchText, excludeList]
+					 ? [NSString stringWithFormat:@"displayName CONTAINS[cd] '%@' %@", searchText, excludeList]
 					 : nil;
 
 	if (filter)
 	{
 		_dataSource.sectionDescriptors = [NSArray arrayWithObjects:
 			[NSDictionary dictionaryWithObjectsAndKeys:
+				@"ENABLED APPLICATIONS", ALSectionDescriptorTitleKey,
 				@"ALLinkCell", ALSectionDescriptorCellClassNameKey,
 				iconSize, ALSectionDescriptorIconSizeKey,
 				NSTrue, ALSectionDescriptorSuppressHiddenAppsKey,
-				filter, ALSectionDescriptorPredicateKey
+				[NSString stringWithFormat:@"%@ AND bundleIdentifier in {%@}", filter, enabledList], ALSectionDescriptorPredicateKey
+			, nil],
+
+			[NSDictionary dictionaryWithObjectsAndKeys:
+				@"AVAILABLE APPLICATIONS", ALSectionDescriptorTitleKey,
+				@"ALLinkCell", ALSectionDescriptorCellClassNameKey,
+				iconSize, ALSectionDescriptorIconSizeKey,
+				NSTrue, ALSectionDescriptorSuppressHiddenAppsKey,
+				[NSString stringWithFormat:@"%@ AND not bundleIdentifier in {%@}", filter, enabledList], ALSectionDescriptorPredicateKey
 			, nil]
 		, nil];
 	}
 	else
 	{
+		NSString *userPath;
+		if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
+			userPath = [NSString stringWithFormat:@"path contains[cd] 'var/containers' %@ and not bundleIdentifier in {%@}", excludeList, enabledList];
+		} else {
+			userPath = [NSString stringWithFormat:@"path contains[cd] 'var/mobile' %@ and not bundleIdentifier in {%@}", excludeList, enabledList];
+		}
 		_dataSource.sectionDescriptors = [NSArray arrayWithObjects:
 			[NSDictionary dictionaryWithObjectsAndKeys:
-				@"Enabled Applications", ALSectionDescriptorTitleKey,
+				@"ENABLED APPLICATIONS", ALSectionDescriptorTitleKey,
 				@"ALLinkCell", ALSectionDescriptorCellClassNameKey,
 				iconSize, ALSectionDescriptorIconSizeKey,
 				(id)kCFBooleanTrue, ALSectionDescriptorSuppressHiddenAppsKey,
@@ -304,7 +555,7 @@ static NSMutableArray* statusIcons;
 				ALSectionDescriptorPredicateKey
 			, nil],
 			[NSDictionary dictionaryWithObjectsAndKeys:
-				@"System Applications", ALSectionDescriptorTitleKey,
+				@"SYSTEM APPLICATIONS", ALSectionDescriptorTitleKey,
 				@"ALLinkCell", ALSectionDescriptorCellClassNameKey,
 				iconSize, ALSectionDescriptorIconSizeKey,
 				(id)kCFBooleanTrue, ALSectionDescriptorSuppressHiddenAppsKey,
@@ -312,7 +563,7 @@ static NSMutableArray* statusIcons;
 				ALSectionDescriptorPredicateKey
 			, nil],
 			[NSDictionary dictionaryWithObjectsAndKeys:
-				@"Cydia Applications", ALSectionDescriptorTitleKey,
+				@"CYDIA APPLICATIONS", ALSectionDescriptorTitleKey,
 				@"ALLinkCell", ALSectionDescriptorCellClassNameKey,
 				iconSize, ALSectionDescriptorIconSizeKey,
 				(id)kCFBooleanTrue, ALSectionDescriptorSuppressHiddenAppsKey,
@@ -320,11 +571,11 @@ static NSMutableArray* statusIcons;
 				ALSectionDescriptorPredicateKey
 			, nil],
 			[NSDictionary dictionaryWithObjectsAndKeys:
-				@"User Applications", ALSectionDescriptorTitleKey,
+				@"USER APPLICATIONS", ALSectionDescriptorTitleKey,
 				@"ALLinkCell", ALSectionDescriptorCellClassNameKey,
 				iconSize, ALSectionDescriptorIconSizeKey,
 				(id)kCFBooleanTrue, ALSectionDescriptorSuppressHiddenAppsKey,
-				[NSString stringWithFormat:@"path contains[cd] 'var/mobile' %@ and not bundleIdentifier in {%@}", excludeList, enabledList],
+				userPath,
 				ALSectionDescriptorPredicateKey
 			, nil]
 		, nil];
@@ -335,27 +586,21 @@ static NSMutableArray* statusIcons;
 -(id)init
 {
 	if (!(self = [super init])) return nil;
+	preferences = ONPreferences.sharedInstance;
 
 	CGRect bounds = [[UIScreen mainScreen] bounds];
 
 	_dataSource = [[ALApplicationTableDataSource alloc] init];
-	_tableView = [[UITableView alloc] initWithFrame:CGRectMake(0, 0, bounds.size.width, bounds.size.height) style:UITableViewStyleGrouped];
+	_tableView = [[UITableView alloc] initWithFrame:CGRectMake(0, 0, bounds.size.width, bounds.size.height) style:UITableViewStylePlain]; // UITableViewStyleGrouped UITableViewStylePlain
 	_tableView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
 	_tableView.delegate = self;
 	_tableView.dataSource = _dataSource;
 	_dataSource.tableView = _tableView;
 	[self updateDataSource:nil];
 
-	// Search Bar
-	_searchBar = [[UISearchBar alloc] initWithFrame:CGRectZero];
-	_searchBar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-	if ([_searchBar respondsToSelector:@selector(setUsesEmbeddedAppearance:)])
-		[_searchBar setUsesEmbeddedAppearance:true];
-	_searchBar.delegate = self;
+	isSearching = NO;
 
-	NSNotificationCenter* nc = [NSNotificationCenter defaultCenter];
-	[nc addObserver:self selector:@selector(keyboardWillShowWithNotification:) name:UIKeyboardWillShowNotification object:nil];
-	[nc addObserver:self selector:@selector(keyboardWillHideWithNotification:) name:UIKeyboardWillHideNotification object:nil];
+	[[objc_getClass("_UITableViewHeaderFooterViewLabel") appearanceWhenContainedIn:[OpenNotifierAppsController class], nil] setTextColor:[UIColor redColor]];
 
 	return self;
 }
@@ -364,93 +609,65 @@ static NSMutableArray* statusIcons;
 {
 	((UIViewController *)self).title = @"Applications";
 
-	UIEdgeInsets insets = UIEdgeInsetsMake(44.0f, 0, 0, 0);
-	_tableView.contentInset = insets;
-	_tableView.contentOffset = CGPointMake(0, 12.0f);
-	insets.top = 0;
-	_tableView.scrollIndicatorInsets = insets;
-	_searchBar.frame = CGRectMake(0, -44.0f, _tableView.bounds.size.width, 44.0f);
+	self.searchController = [[UISearchController alloc] initWithSearchResultsController:nil];
+	self.searchController.searchResultsUpdater = self;
+	self.searchController.delegate = self;
+	self.searchController.searchBar.delegate = self;
+	self.definesPresentationContext = YES;
+	self.searchController.dimsBackgroundDuringPresentation = NO;
 
-	[_tableView addSubview:_searchBar];
+	if (kCFCoreFoundationVersionNumber < kCFCoreFoundationVersionNumber_iOS_9_0) {
+		self.searchController.searchBar.scopeButtonTitles = [NSArray array]; //This is needed so section header doesn't overlap searchBar
+	}
+
+	[self.searchController.searchBar sizeToFit];
+	_tableView.tableHeaderView = self.searchController.searchBar;
+
 	[self.view addSubview:_tableView];
+	[_tableView setContentOffset:CGPointMake(0, 44)]; // hide searchController
 	[super viewDidLoad];
 }
 
-- (void)viewWillDisappear:(BOOL)animated
+-(void)viewWillAppear:(BOOL)animated
 {
-	[super viewWillDisappear:animated];
-	[_searchBar resignFirstResponder];
+	if (!preferences) preferences = ONPreferences.sharedInstance;
+	else [preferences reload];
+	[super viewWillAppear:animated];
+	if (!isSearching) [_tableView setContentOffset:CGPointMake(0, 44)]; // hide searchController
 }
 
 -(void)dealloc
 {
-	[[NSNotificationCenter defaultCenter] removeObserver:self];
-	_searchBar.delegate = nil;
 	_tableView.delegate = nil;
-	[_searchBar release];
+	[self.searchController release];
 	[_dataSource release]; // tableview will be released by dataSource
 	[super dealloc];
-}
-
--(void)keyboardWillShowWithNotification:(NSNotification*)notification
-{
-	[UIView beginAnimations:nil context:nil];
-	NSDictionary* userInfo = notification.userInfo;
-	[UIView setAnimationDuration:[[userInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey] doubleValue]];
-	[UIView setAnimationCurve:(UIViewAnimationCurve)[[userInfo objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue]];
-	CGRect keyboardFrame = CGRectZero;
-	[[userInfo valueForKey:UIKeyboardFrameEndUserInfoKey] getValue:&keyboardFrame];
-	UIEdgeInsets insets = UIEdgeInsetsMake(110.0f, 0, keyboardFrame.size.height, 0);
-	_tableView.contentInset = insets;
-	insets.top = 0;
-	_tableView.scrollIndicatorInsets = insets;
-	[UIView commitAnimations];
-}
-
-- (void)keyboardWillHideWithNotification:(NSNotification *)notification
-{
-	[UIView beginAnimations:nil context:nil];
-	NSDictionary* userInfo = notification.userInfo;
-	[UIView setAnimationDuration:[[userInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey] doubleValue]];
-	[UIView setAnimationCurve:(UIViewAnimationCurve)[[userInfo objectForKey:UIKeyboardAnimationCurveUserInfoKey] integerValue]];
-	UIEdgeInsets insets = UIEdgeInsetsMake(110.0f, 0, 0, 0);
-	_tableView.contentInset = insets;
-	insets.top = 0.0f;
-	_tableView.scrollIndicatorInsets = insets;
-	[UIView commitAnimations];
 }
 #pragma mark #endregion [ Controller ]
 
 #pragma mark #region [ UISearchBar ]
 
--(void)searchBarTextDidBeginEditing:(UISearchBar*)searchBar
+- (void)updateSearchResultsForSearchController:(UISearchController *)searchController
 {
-	[_searchBar setShowsCancelButton:true animated:true];
-}
-
--(void)searchBarTextDidEndEditing:(UISearchBar*)searchBar
-{
-	[_searchBar setShowsCancelButton:false animated:true];
-}
-
--(void)searchBarSearchButtonClicked:(UISearchBar*)searchBar
-{
-	[_searchBar resignFirstResponder];
-}
-
--(void)searchBarCancelButtonClicked:(UISearchBar*)searchBar
-{
-	_searchBar.text = nil;
-	[self updateDataSource:nil];
-	[_searchBar resignFirstResponder];
-	_tableView.contentOffset = CGPointMake(0, -44.0f);
-}
-
--(void)searchBar:(UISearchBar*)searchBar textDidChange:(NSString*)searchText
-{
+	NSString *searchText = searchController.searchBar.text;
 	[self updateDataSource:searchText];
 }
 
+- (void)searchBar:(UISearchBar *)searchBar selectedScopeButtonIndexDidChange:(NSInteger)selectedScope
+{
+	[self updateSearchResultsForSearchController:self.searchController];
+}
+
+- (void)willPresentSearchController:(UISearchController *)searchController
+{
+	isSearching = YES;
+}
+
+- (void)willDismissSearchController:(UISearchController *)searchController
+{
+	isSearching = NO;
+	[self.navigationController setNavigationBarHidden:NO animated:YES]; // force it to be shown because sometimes, if going into an App, then searching an icon and going into an icon, then back, then cancel icon search, then back, then cancel App search, the Nav bar would not reappear.
+}
 #pragma mark #endregion [ UISearchBar ]
 
 #pragma mark #region [ UITableViewDelegate ]
@@ -487,14 +704,15 @@ static NSMutableArray* statusIcons;
 -(id)initWithAppName:(NSString*)appName identifier:(NSString*)identifier type:(int)iconType
 {
 	_appName = appName;
-	_identifier = identifier;
 	_iconType = iconType;
+	_identifier = identifier;
 	return [self init];
 }
 
--(id)init
+- (id)init
 {
 	if ((self = [super init]) == nil) return nil;
+	preferences = ONPreferences.sharedInstance;
 
 	NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
 
@@ -550,28 +768,64 @@ static NSMutableArray* statusIcons;
 
 -(void)viewDidLoad
 {
+	self.searchController = [[UISearchController alloc] initWithSearchResultsController:nil];
+	self.searchController.searchResultsUpdater = self;
+	self.searchController.delegate = self;
+	self.searchController.searchBar.delegate = self;
+	self.definesPresentationContext = YES;
+	self.searchController.dimsBackgroundDuringPresentation = NO;
+	self.table.tableHeaderView = self.searchController.searchBar;
+
+	if (kCFCoreFoundationVersionNumber < kCFCoreFoundationVersionNumber_iOS_9_0) {
+		self.searchController.searchBar.scopeButtonTitles = [NSArray array]; //This is needed so section header doesn't overlap searchBar
+	}
+
+	[self.searchController.searchBar sizeToFit];
+	isSearching = NO;
+	_searchText = nil;
+
 	[super viewDidLoad];
 	[self setTitle:_appName];
+}
+
+-(void)viewWillAppear:(BOOL)animated
+{
+	[super viewWillAppear:animated];
+	if (!isSearching) [self.table setContentOffset:CGPointMake(0, 44)]; // hide searchController
+}
+-(void)dealloc
+{
+	[self.searchController release];
+	[super dealloc];
 }
 
 #pragma mark #endregion
 
 #pragma mark #region [ UITableViewDatasource ]
 
-
 -(id)readPreferenceValue:(PSSpecifier*)specifier
 {
 	NSString* key = specifier.identifier;
 	ONApplication* app = [preferences getApplication:[specifier propertyForKey:ONAppIdentifierKey]];
 
-	return NSBool(app && app.useNotifications == 1);
+	if ([key isEqualToString:ONUseBadgesKey]) {
+		return NSBool(app && app.useBadges == 1);
+	} else {
+		return NSBool(app && app.useNotifications == 1);
+	}
 }
 
 -(void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier
 {
 	NSString* key = specifier.identifier;
 	NSString* identifier = [specifier propertyForKey:ONAppIdentifierKey];
-	[preferences addUseNotifications:[value boolValue] forApplication:identifier];
+
+	if ([key isEqualToString:ONUseBadgesKey]) {
+		[preferences addUseBadges:[value boolValue] forApplication:identifier];
+	} else {
+		[preferences addUseNotifications:[value boolValue] forApplication:identifier];
+	}
+
 	[self reloadSpecifiers];
 	[preferences save];
 }
@@ -583,21 +837,42 @@ static NSMutableArray* statusIcons;
 	_specifiers = [[NSMutableArray alloc] init];
 
 	if (_iconType == 0) {
-		PSSpecifier* useNotifications = [PSSpecifier preferenceSpecifierNamed:@"Use Notification Center" target:self set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:)
+		PSSpecifier* specifier = [PSSpecifier preferenceSpecifierNamed:@"Use Icon Badges" target:self set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:)
 																detail:nil cell:PSSwitchCell edit:nil];
-		[useNotifications setProperty:ONUseNotificationsKey forKey:PSIDKey];
-		[useNotifications setProperty:_identifier forKey:ONAppIdentifierKey];
-		[_specifiers addObject:useNotifications];
+		[specifier setProperty:ONUseBadgesKey forKey:PSIDKey];
+		[specifier setProperty:_identifier forKey:ONAppIdentifierKey];
+		[_specifiers addObject:specifier];
+
+		specifier = [PSSpecifier preferenceSpecifierNamed:@"Use Notification Center" target:self set:@selector(setPreferenceValue:specifier:) get:@selector(readPreferenceValue:)
+																detail:nil cell:PSSwitchCell edit:nil];
+		[specifier setProperty:ONUseNotificationsKey forKey:PSIDKey];
+		[specifier setProperty:_identifier forKey:ONAppIdentifierKey];
+		[_specifiers addObject:specifier];
 	}
 
 	for (id name in _application.icons) {
 		if (![statusIcons containsObject:name])
 		{
 			NSString* nameCount = name;
+
 			if ([name hasPrefix:@"Count_"])
 			{
 				nameCount = [name substringFromIndex:6];
 			}
+
+			if (isSearching && _searchText) {
+				BOOL match = NO;
+				if (_searchText.length == 0) {
+					match = YES;
+				} else if ([nameCount rangeOfString:_searchText options:NSCaseInsensitiveSearch].location != NSNotFound) {
+					match = YES;
+				}
+
+				if (!match) {
+					continue;
+				}
+			}
+
 			PSSpecifier* specifier = [PSSpecifier preferenceSpecifierNamed:nameCount target:self set:nil get:nil
 																	detail:[OpenNotifierIconSettingsController class] cell:PSLinkListCell edit:nil];
 
@@ -616,6 +891,20 @@ static NSMutableArray* statusIcons;
 		{
 			nameCount = [name substringFromIndex:6];
 		}
+
+		if (isSearching && _searchText) {
+			BOOL match = NO;
+			if (_searchText.length == 0) {
+				match = YES;
+			} else if ([nameCount rangeOfString:_searchText options:NSCaseInsensitiveSearch].location != NSNotFound) {
+				match = YES;
+			}
+
+			if (!match) {
+				continue;
+			}
+		}
+
 		PSSpecifier* specifier = [PSSpecifier preferenceSpecifierNamed:nameCount target:self set:nil get:nil
 			detail:[OpenNotifierIconSettingsController class] cell:PSLinkListCell edit:nil];
 
@@ -633,11 +922,30 @@ static NSMutableArray* statusIcons;
 {
 	/* iOS 6 no longer supports setIcon on PSTableCell so logic was moved here to fix it */
 	ONIconCell* cell = (ONIconCell*)[super tableView:tableView cellForRowAtIndexPath:indexPath];
-	if ([indexPath indexAtPosition:1] > 0 || _iconType != 0) {
-		((UITableViewCell *)cell).imageView.image = [cell getIconNamed:[((PSTableCell *)cell).specifier propertyForKey:PSIDKey]];
+	if ([indexPath indexAtPosition:1] > 1 || _iconType != 0) {
+		((UITableViewCell *)cell).imageView.image = [cell getIconNamed:((PSTableCell *)cell).specifier.identifier];
 	}
 
 	return (UITableViewCell *)cell;
+}
+
+- (void)updateSearchResultsForSearchController:(UISearchController *)searchController
+{
+	_searchText = searchController.searchBar.text;
+	[self reloadSpecifiers];
+}
+
+- (void)willPresentSearchController:(UISearchController *)searchController
+{
+	isSearching = YES;
+}
+
+- (void)willDismissSearchController:(UISearchController *)searchController
+{
+	_searchText = nil;
+	isSearching = NO;
+	[self reloadSpecifiers];
+	[self.navigationController setNavigationBarHidden:NO animated:YES]; // force it to be shown because sometimes, if going into an App, then searching an icon and going into an icon, then back, then cancel icon search, then back, then cancel App search, the Nav bar would not reappear.
 }
 
 #pragma mark #endregion
@@ -662,7 +970,7 @@ static NSMutableArray* statusIcons;
 	}
 	else if ([key isEqualToString:ONIconAlignmentKey])
 	{
-		ONApplicationIcon* icon = [app.icons objectForKey:[self.specifier propertyForKey:PSIDKey]];
+		ONApplicationIcon* icon = [app.icons objectForKey:self.specifier.identifier];
 		ONIconAlignment alignment = icon ? icon.alignment : ONIconAlignmentDefault;
 		return [NSNumber numberWithUnsignedInteger:alignment];
 	}
@@ -766,119 +1074,3 @@ static NSMutableArray* statusIcons;
 
 @end
 #pragma mark #endregion
-
-
-@implementation SystemIconsController
-@synthesize _systemIcons;
-
--(NSString*)title
-{
-	return @"System Icons";
-}
-
--(UIView*)view
-{
-	return _logoTable;
-}
-
-+(void)load
-{
-	NSAutoreleasePool *pool([[NSAutoreleasePool alloc] init]);
-	[pool release];
-}
-
--(id)initForContentSize:(CGSize)size
-{
-	if ((self = [super init]) != nil)
-	{
-		if (!self._systemIcons)
-		{
-			self._systemIcons = [NSMutableArray arrayWithObjects:@"AirPlay Icon", @"Alarm Icon", @"Bluetooth Icon", @"Do Not Disturb Icon", @"Rotation Lock Icon", @"Silent Mode Icon", @"Tether Icon", @"Vibrate Mode Icon", @"VPN Icon", nil];
-		}
-
-		_logoTable = [[UITableView alloc] initWithFrame: (CGRect){{0,0}, size} style:UITableViewStyleGrouped];
-		[_logoTable setDataSource:self];
-		[_logoTable setDelegate:self];
-		if ([self respondsToSelector:@selector(setView:)])
-		{
-			[self setView:_logoTable];
-		}
-
-	}
-	return self;
-}
-
--(void)reloadSpecifiers
-{
-	[_logoTable reloadData];
-}
-
--(NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section
-{
-	return @"System Icons";
-}
-
--(void)viewWillAppear:(BOOL)animated
-{
-	[_logoTable reloadData];
-}
-
--(void)viewDidUnload
-{
-	[super viewDidUnload];
-}
-
--(void)dealloc
-{
-	[super dealloc];
-}
-
--(NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
-{
-	return 1;
-}
-
--(NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
-{
-	return self._systemIcons.count;
-}
-
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
-{
-
-	static NSString *CellIdentifier = [self._systemIcons objectAtIndex:indexPath.row];
-
-	UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:CellIdentifier];
-	if (cell == nil)
-	{
-		cell = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier] autorelease];
-	}
-	cell.textLabel.text = [self._systemIcons objectAtIndex:indexPath.row];
-
-	return cell;
-}
-
--(NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section
-{
-	return nil;
-}
-
--(void)tableView:(UITableView*)tableView didSelectRowAtIndexPath:(NSIndexPath*)indexPath
-{
-	UITableViewCell* cell = [tableView cellForRowAtIndexPath:indexPath];
-
-	// Need to mimic what PSListController does when it handles didSelectRowAtIndexPath
-	// otherwise the child controller won't load
-	OpenNotifierIconsController* controller = [[[OpenNotifierIconsController alloc]
-												initWithAppName:cell.textLabel.text
-												identifier:cell.textLabel.text
-												type:1
-												] autorelease];
-
-	controller.rootController = self.rootController;
-	controller.parentController = self;
-
-	[self pushController:controller];
-	[tableView deselectRowAtIndexPath:indexPath animated:true];
-}
-@end

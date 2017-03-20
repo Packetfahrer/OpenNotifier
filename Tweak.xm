@@ -17,14 +17,25 @@
 #import <UIKit7/UIStatusBarItem.h>
 #import <AVFoundation/AVAudioSession.h>
 
+#undef HBLogInfo
+#define HBLogInfo(fmt, ...)
+
 #define UIKitVersionNumber_iOS_7_0 847.200000
 #define UIKitVersionNumber_iOS_7_1_1 847.260000
 #define UIKitVersionNumber_iOS_7_1_2 847.270000
+#define UIKitVersionNumber_iOS_9_1 1241.11
 
 @interface SBBulletinObserverViewController : UIViewController
 - (id)firstSection;
--(unsigned int)_numberOfVisibleSections;
--(unsigned int)_numberOfBulletinsInSection:(id)arg1;
+- (unsigned int)_numberOfVisibleSections;
+- (unsigned int)_numberOfBulletinsInSection:(id)arg1;
+@end
+
+@interface SBNotificationsViewController : SBBulletinObserverViewController
+@end
+
+@interface SBNotificationCenterLayoutViewController : UIViewController
+-(SBNotificationsViewController *)notificationsViewController;
 @end
 
 @interface SBNotificationCenterViewController : UIViewController
@@ -50,31 +61,57 @@
 @end
 
 @interface BBServer
-- (void)publishBulletin:(id)arg1 destinations:(unsigned long long)arg2 alwaysToLockScreen:(_Bool)arg3;
+- (void)publishBulletin:(id)arg1 destinations:(NSUInteger)arg2 alwaysToLockScreen:(_Bool)arg3;
 - (id)_allBulletinsForSectionID:(id)arg1;
 
 - (id)allBulletinIDsForSectionID:(id)arg1;
 - (id)noticesBulletinIDsForSectionID:(id)arg1;
-- (id)bulletinIDsForSectionID:(id)arg1 inFeed:(unsigned long long)arg2;
+- (id)bulletinIDsForSectionID:(id)arg1 inFeed:(NSUInteger)arg2;
 @end
 
+@interface SBIconModel : NSObject
++ (id)sharedInstance;
+- (id)visibleIconIdentifiers;
+@end
+
+@interface SBIconModel (iOS8)
+- (id)applicationIconForBundleIdentifier:(id)bundleIdentifier;
+@end
+
+@interface BCBatteryDevice : NSObject
+@property(nonatomic, copy) NSString *identifier;
+@property(nonatomic, copy) NSString *name;
+@end
+
+@interface BCBatteryDeviceController : NSObject
++ (id)sharedInstance;
+@property(nonatomic, readonly) NSArray *connectedDevices;
+@end
+
+@interface TUAudioSystemController : NSObject // TUAudioController
++ (id)sharedAudioSystemController;
+- (BOOL)isUplinkMuted;
+@end
 
 #pragma mark #region [ Private Variables ]
-static ONPreferences* preferences;
-static NSMutableDictionary* statusBarItems = [[NSMutableDictionary alloc] init];
-static NSMutableDictionary* currentIconSetList = [[NSMutableDictionary alloc] init];
-static NSMutableDictionary* trackedBadges = [[NSMutableDictionary alloc] init];
-static NSMutableDictionary* trackedBadgeCount = [[NSMutableDictionary alloc] init];
-static NSMutableDictionary* trackedNotifications = [[NSMutableDictionary alloc] init];
-static NSMutableDictionary* trackedNotificationCount = [[NSMutableDictionary alloc] init];
-//static BOOL isAirplane = false;
+static ONPreferences* preferences = nil;
+static NSMutableDictionary* statusBarItems = nil;
+static NSMutableDictionary* currentIconSetList = nil;
+static NSMutableDictionary* trackedBadges = nil;
+static NSMutableDictionary* trackedBadgeCount = nil;
+static NSMutableDictionary* trackedNotifications = nil;
+static NSMutableDictionary* trackedNotificationCount = nil;
+//static BOOL isAirplane = NO;
 static int isAirPlay = 0;
-static BOOL isAlarm = false;
-static BOOL isBluetooth = false;
-static BOOL isQuiet = false;
-static BOOL isRotation = false;
-static BOOL isVPN = false;
-static BOOL changeTether = false;
+static BOOL isPhoneMicMuted = NO;
+static BOOL isSpringBoardLoaded = NO;
+static BOOL isAlarm = NO;
+static BOOL isBluetooth = NO;
+static BOOL isQuiet = NO;
+static BOOL isRotation = NO;
+static BOOL isVPN = NO;
+static BOOL isWiFiCallingActive = NO;
+static BOOL changeTether = NO;
 static id mailBadge = nil;
 
 static NSDate *lastProcessDateNC = nil;
@@ -93,7 +130,7 @@ static inline NSString *IconNameFromItem(UIStatusBarItem *item)
 
 static void SetSystemIcon(NSString *name, bool enable, bool reset = false)
 {
-	for (int i = 0; i < 33; i++)
+	for (int i = 0; i < 36; i++)
 	{
 		UIStatusBarItem *item = [%c(UIStatusBarItem) itemWithType:i idiom:0];
 		if (!item)
@@ -132,20 +169,21 @@ static void ProcessApplicationIcon(NSString* identifier, int type = 0) //0 = bad
 
 	ONApplication* app;
 	if (!(app = [preferences getApplication:identifier])) return;
-	if (type == 0 && app.useNotifications == 1 && !preferences.globalUseBadges) return;
+	if (type == 0 && !(app.useBadges == 1 || preferences.globalUseBadges || (app.useNotifications != 1 && !preferences.globalUseNotifications))) return;
 	if (type == 1 && app.useNotifications != 1 && !preferences.globalUseNotifications) return;
 
 	BOOL shouldShow = YES;
 	int count = 0;
 	int countBadges = 0;
 	int countNotifications = 0;
-	if (app.useNotifications != 1 || preferences.globalUseBadges) {
+	if (app.useBadges == 1 || preferences.globalUseBadges || (app.useNotifications != 1 && !preferences.globalUseNotifications)) {
 		countBadges = [[trackedBadgeCount objectForKey:identifier] intValue];
 	}
+
 	if (app.useNotifications == 1 || preferences.globalUseNotifications) {
 		countNotifications = [[trackedNotificationCount objectForKey:identifier] intValue];
 	}
-	Log(@"ProcessApplicationIcon (%D) %d, %d -- %@", type, countBadges, countNotifications, identifier);
+	Log(@"ProcessApplicationIcon (%d) %d, %d -- %@", type, countBadges, countNotifications, identifier);
 
 	BOOL isCountIcon = NO;
 
@@ -184,18 +222,14 @@ static void ProcessApplicationIcon(NSString* identifier, int type = 0) //0 = bad
 			{
 				tmpName = [NSString stringWithFormat:@"Count%d%@", count, [name substringFromIndex:5]];
 			}
-			else
-			{
-				tmpName = [NSString stringWithFormat:@"Count%d%@", 1, [name substringFromIndex:5]];
-			}
 
-			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@.png", tmpName]]
-				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@@2x.png", tmpName]]) {
+			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@@2x.png", tmpName]]
+				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@_Color@2x.png", tmpName]]) {
 				tmpName = [NSString stringWithFormat:@"Count%d%@", 100, [name substringFromIndex:5]];
 			}
 
-			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@.png", tmpName]]
-				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@@2x.png", tmpName]]) {
+			if (![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@@2x.png", tmpName]]
+				&& ![NSFileManager.defaultManager fileExistsAtPath:[NSString stringWithFormat:@"/System/Library/Frameworks/UIKit.framework/Black_ON_%@_Color@2x.png", tmpName]]) {
 				name = [NSString stringWithFormat:@"Count%d%@", 10, [name substringFromIndex:5]];
 			} else {
 				name = tmpName;
@@ -398,10 +432,7 @@ static void UpdateTetherIcon()
 			if (isTethered)
 			{
 				changeTether = true;
-				if ([tm respondsToSelector:@selector(setIsNetworkTethering)]) {
-					[tm setIsNetworkTethering:NO withNumberOfDevices:0];
-					[tm setIsNetworkTethering:YES withNumberOfDevices:i];
-				} else if ([tm respondsToSelector:@selector(_setIsNetworkTethering)]) {
+				if ([tm respondsToSelector:@selector(_setIsNetworkTethering:withNumberOfDevices:)]) {
 					[tm _setIsNetworkTethering:NO withNumberOfDevices:0];
 					[tm _setIsNetworkTethering:YES withNumberOfDevices:i];
 				}
@@ -424,113 +455,192 @@ static void TetherModeSettingsChanged()
 	UpdateTetherIcon();
 }
 
-//static void UpdateAirplaneIcon()
-//{
-//	if (airplaneIconItem)
-//	{
-//		[airplaneIconItem release];
-//		airplaneIconItem = nil;
-//	}
+// static void UpdateAirplaneIcon()
+// {
+// 	if (airplaneIconItem)
+// 	{
+// 		[airplaneIconItem release];
+// 		airplaneIconItem = nil;
+// 	}
 //
-//	if (preferences.airplaneModeEnabled)
-//	{
-//		SBTelephonyManager *tm = [%c(SBTelephonyManager) sharedTelephonyManager];
-//		if (tm && tm.isInAirplaneMode)
-//		{
-//			airplaneIconItem = [CreateStatusBarItem(ONAirplaneKey, ONAirplaneKey, preferences.airplaneIconOnLeft) retain];
-//		}
-//	}
-//}
+// 	if (preferences.airplaneModeEnabled)
+// 	{
+// 		SBTelephonyManager *tm = [%c(SBTelephonyManager) sharedTelephonyManager];
+// 		if (tm && tm.isInAirplaneMode)
+// 		{
+// 			airplaneIconItem = [CreateStatusBarItem(ONAirplaneKey, ONAirplaneKey, preferences.airplaneIconOnLeft) retain];
+// 		}
+// 	}
+// }
 
 static void UpdateAirPlayIcon()
 {
+	NSString *iconName;
+	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
+		iconName = @"UIStatusBarIndicatorItemView:AirPlay (Right)";
+	} else {
+		iconName = @"Indicator:AirPlay (Right)";
+	}
+
 	ProcessSystemIcon(@"AirPlay Icon", preferences.airPlayModeEnabled && isAirPlay == 1, @"");
 	if (preferences.airPlayModeEnabled && preferences.enabled && isAirPlay == 1)
 	{
-		SetSystemIcon(@"Indicator:AirPlay (Right)", false);
+		SetSystemIcon(iconName, false);
 	}
 	else
 	{
-		SetSystemIcon(@"Indicator:AirPlay (Right)", isAirPlay, true); //reset to whatever iOS wants
+		SetSystemIcon(iconName, isAirPlay, true); //reset to whatever iOS wants
 	}
 }
 
 static void UpdateAlarmIcon()
 {
+	NSString *iconName;
+	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
+		iconName = @"UIStatusBarIndicatorItemView:Alarm (Right)";
+	} else {
+		iconName = @"Indicator:Alarm (Right)";
+	}
+
 	ProcessSystemIcon(@"Alarm Icon", preferences.alarmModeEnabled && (isAlarm == !preferences.alarmModeInverted), @"");
 	if (preferences.alarmModeEnabled && isAlarm && preferences.enabled)
 	{
-		SetSystemIcon(@"Indicator:Alarm (Right)", false);
+		SetSystemIcon(iconName, false);
 	}
 	else
 	{
-		SetSystemIcon(@"Indicator:Alarm (Right)", isAlarm);
+		SetSystemIcon(iconName, isAlarm);
 	}
 }
 
 static void UpdateBluetoothIcon()
 {
+	NSString *iconName;
+	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
+		iconName = @"UIStatusBarBluetoothItemView (Right)";
+	} else {
+		iconName = @"Bluetooth (Right)";
+	}
+
 	BluetoothManager *bm = [%c(BluetoothManager) sharedInstance];
 	isBluetooth = bm && bm.enabled;
 	if (preferences.bluetoothModeEnabled && preferences.enabled)
 	{
-		SetSystemIcon(@"Bluetooth (Right)", false);
+		SetSystemIcon(iconName, false);
 	}
 	else
 	{
-		SetSystemIcon(@"Bluetooth (Right)", isBluetooth);
+		SetSystemIcon(iconName, isBluetooth);
 	}
 
 	ProcessSystemIcon(@"Bluetooth Icon", preferences.bluetoothModeEnabled && isBluetooth && (bm.connected || preferences.bluetoothAlwaysEnabled), bm.connected ? @"_ENBD" : @"");
 }
 
+static void UpdateLowPowerIcon()
+{
+	ProcessSystemIcon(@"Low Power Icon", preferences.lowPowerModeEnabled && [[%c(SpringBoard) sharedApplication] isBatterySaverModeActive], @"");
+}
+
+static void UpdatePhoneMicMutedIcon()
+{
+	ProcessSystemIcon(@"Phone Mic Muted Icon", preferences.phoneMicMutedModeEnabled && isPhoneMicMuted, @"");
+}
+
 static void UpdateQuietIcon()
 {
+	NSString *iconName;
+	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
+		iconName = @"UIStatusBarQuietModeItemView:QuietMode (Right)";
+	} else {
+		iconName = @"QuietMode:QuietMode (Right)";
+	}
+
 	ProcessSystemIcon(@"Do Not Disturb Icon", preferences.quietModeEnabled && (isQuiet == !preferences.quietModeInverted), @"");
 	if (preferences.quietModeEnabled && isQuiet && preferences.enabled)
 	{
-		SetSystemIcon(@"QuietMode:QuietMode (Right)", false);
+		SetSystemIcon(iconName, false);
 	}
 	else
 	{
-		SetSystemIcon(@"QuietMode:QuietMode (Right)", isQuiet);
+		SetSystemIcon(iconName, isQuiet);
 	}
 }
 
 static void UpdateRotationLockIcon()
 {
+	NSString *iconName;
+	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
+		iconName = @"UIStatusBarIndicatorItemView:RotationLock (Right)";
+	} else {
+		iconName = @"Indicator:RotationLock (Right)";
+	}
+
 	SBOrientationLockManager *bm = [%c(SBOrientationLockManager) sharedInstance];
-	isRotation = bm && bm.isLocked;
+	if ([bm respondsToSelector:@selector(isUserLocked)])
+	{
+		isRotation = bm && bm.isUserLocked;
+	} else {
+		isRotation = bm && bm.isLocked;
+	}
+
 	ProcessSystemIcon(@"Rotation Lock Icon", (isRotation == !preferences.rotationLockModeInverted) && preferences.rotationLockModeEnabled, @"");
 	if (preferences.rotationLockModeEnabled && preferences.enabled)
 	{
-		SetSystemIcon(@"Indicator:RotationLock (Right)", false);
+		SetSystemIcon(iconName, false);
 	}
 	else
 	{
-		SetSystemIcon(@"Indicator:RotationLock (Right)", isRotation);
+		SetSystemIcon(iconName, isRotation);
 	}
 }
 
 static void UpdateVPNIcon()
 {
+	NSString *iconName;
+	if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
+		iconName = @"UIStatusBarIndicatorItemView:VPN (Left)";
+	} else {
+		iconName = @"Indicator:VPN (Left/Right)";
+	}
+
 	SBTelephonyManager *tm = [%c(SBTelephonyManager) sharedTelephonyManager];
 	isVPN = tm && tm.isUsingVPNConnection;
 	ProcessSystemIcon(@"VPN Icon", isVPN && preferences.vPNModeEnabled, @"");
 	if (preferences.vPNModeEnabled && preferences.enabled)
 	{
-		SetSystemIcon(@"Indicator:VPN (Left/Right)", false);
+		SetSystemIcon(iconName, false);
 	}
 	else
 	{
-		SetSystemIcon(@"Indicator:VPN (Left/Right)", isVPN);
+		SetSystemIcon(iconName, isVPN);
+	}
+}
+
+static void UpdateWatchIcon()
+{
+	BOOL isConnected = NO;
+
+	BCBatteryDeviceController *deviceController = [%c(BCBatteryDeviceController) sharedInstance];
+	if (deviceController) {
+		for (BCBatteryDevice *device in [deviceController connectedDevices]) {
+			if ([[device name] isEqualToString:@"Watch"]) {
+				isConnected = YES;
+				break;
+			}
+		}
 	}
 
+	ProcessSystemIcon(@"Watch Icon", preferences.watchModeEnabled && isConnected, @"");
+}
+
+static void UpdateWiFiCallingIcon()
+{
+	ProcessSystemIcon(@"WiFi Calling Icon", preferences.wiFiCallingModeEnabled && isWiFiCallingActive, @"");
 }
 
 static int isAirPlayActive()
 {
-	if (!preferences.enabled || !preferences.airPlayModeEnabled)
+	if (!preferences || !preferences.enabled || !preferences.airPlayModeEnabled)
 	{
 		return 2;
 	}
@@ -584,6 +694,18 @@ static void BluetoothModeSettingsChanged()
 	UpdateBluetoothIcon();
 }
 
+static void LowPowerModeSettingsChanged()
+{
+	ReloadSettings();
+	UpdateLowPowerIcon();
+}
+
+static void PhoneMicMutedModeSettingsChanged()
+{
+	ReloadSettings();
+	UpdatePhoneMicMutedIcon();
+}
+
 static void QuietModeSettingsChanged()
 {
 	ReloadSettings();
@@ -600,6 +722,18 @@ static void VPNModeSettingsChanged()
 {
 	ReloadSettings();
 	UpdateVPNIcon();
+}
+
+static void WatchModeSettingsChanged()
+{
+	ReloadSettings();
+	UpdateWatchIcon();
+}
+
+static void WiFiCallingModeSettingsChanged()
+{
+	ReloadSettings();
+	UpdateWiFiCallingIcon();
 }
 
 static void HideMailSettingsChanged()
@@ -636,13 +770,22 @@ static void IconSettingsChanged()
 
 	if (!preferences.enabled)
 	{
-		SetSystemIcon(@"Bluetooth (Right)", isBluetooth);
-		SetSystemIcon(@"Indicator:Alarm (Right)", isAlarm);
 		// isAirPlay = isAirPlayActive();
-		SetSystemIcon(@"Indicator:AirPlay (Right)", isAirPlay, true); //reset
-		SetSystemIcon(@"QuietMode:QuietMode (Right)", isQuiet);
-		SetSystemIcon(@"Indicator:RotationLock (Right)", isRotation);
-		SetSystemIcon(@"Indicator:VPN (Left/Right)", isVPN);
+		if (kCFCoreFoundationVersionNumber > kCFCoreFoundationVersionNumber_iOS_9_1) {
+			SetSystemIcon(@"UIStatusBarBluetoothItemView (Right)", isBluetooth);
+			SetSystemIcon(@"UIStatusBarIndicatorItemView:Alarm (Right)", isAlarm);
+			SetSystemIcon(@"UIStatusBarIndicatorItemView:AirPlay (Right)", isAirPlay, true); //reset
+			SetSystemIcon(@"UIStatusBarQuietModeItemView:QuietMode (Right)", isQuiet);
+			SetSystemIcon(@"UIStatusBarIndicatorItemView:RotationLock (Right)", isRotation);
+			SetSystemIcon(@"UIStatusBarIndicatorItemView:VPN (Left)", isVPN);
+		} else {
+			SetSystemIcon(@"Bluetooth (Right)", isBluetooth);
+			SetSystemIcon(@"Alarm (Right)", isAlarm);
+			SetSystemIcon(@"AirPlay (Right)", isAirPlay, true); //reset
+			SetSystemIcon(@"QuietMode (Right)", isQuiet);
+			SetSystemIcon(@"RotationLock (Right)", isRotation);
+			SetSystemIcon(@"VPN (Left/Right)", isVPN);
+		}
 		return;
 	}
 
@@ -653,9 +796,13 @@ static void IconSettingsChanged()
 //	UpdateAirplaneIcon();
 	UpdateAlarmIcon();
 	UpdateBluetoothIcon();
+	UpdateLowPowerIcon();
+	UpdatePhoneMicMutedIcon();
 	UpdateQuietIcon();
 	UpdateRotationLockIcon();
 	UpdateVPNIcon();
+	UpdateWatchIcon();
+	UpdateWiFiCallingIcon();
 
 	[trackedBadges.allKeys enumerateObjectsUsingBlock: ^(id key, NSUInteger index, BOOL* stop){
 		ProcessApplicationIcon(key);
@@ -664,6 +811,11 @@ static void IconSettingsChanged()
 	[trackedNotifications.allKeys enumerateObjectsUsingBlock: ^(id key, NSUInteger index, BOOL* stop){
 		ProcessApplicationIcon(key, 1);
 	}];
+
+	for (BluetoothDevice* device in [[%c(BluetoothManager) sharedInstance] connectedDevices]) {
+		NSString *identifier = [NSString stringWithFormat:@"ONBluetooth-%@", device.name];
+		ProcessSystemIcon(identifier, YES, @"");
+	}
 }
 
 static void InitBadges()
@@ -682,12 +834,29 @@ static void InitBadges()
 				ProcessApplicationIcon(identifier);
 			}
 		}
+	} else if (%c(SBIconController)) {
+		SBIconController *iconCtrl = [%c(SBIconController) sharedInstance];
+		if ([iconCtrl respondsToSelector:@selector(homescreenIconViewMap)]) {
+			SBIconModel *iconModel = (SBIconModel *)[[iconCtrl homescreenIconViewMap] iconModel];
+			for (NSString *identifier in [iconModel visibleIconIdentifiers]) {
+				SBIcon *icon = (SBIcon *)[iconModel applicationIconForBundleIdentifier:identifier];
+				if (icon && [icon badgeNumberOrString] && ([[icon badgeNumberOrString] intValue] > 0)) {
+					[trackedBadges setObject:NSBool(YES) forKey:identifier];
+					[trackedBadgeCount setObject:[icon badgeNumberOrString] forKey:identifier];
+					ProcessApplicationIcon(identifier);
+				}
+			}
+		}
 	}
 
 	SBNotificationCenterController *nc = (SBNotificationCenterController *)[%c(SBNotificationCenterController) sharedInstance];
 	if (nc)
 	{
-		SBBulletinObserverViewController *observer = (SBBulletinObserverViewController *)[nc.viewController _allModeViewControllerCreateIfNecessary:YES];
+		SBBulletinObserverViewController *observer = nil;
+		SBNotificationCenterLayoutViewController *layoutViewController(MSHookIvar<SBNotificationCenterLayoutViewController *>(nc.viewController, "_layoutViewController"));
+		if (layoutViewController) {
+			observer = (SBBulletinObserverViewController *)layoutViewController.notificationsViewController;
+		}
 		id section;
 		if ((section = [observer firstSection]) != nil)
 		{
@@ -706,15 +875,46 @@ static void InitBadges()
 #pragma mark #endregion
 
 %group All
+%hook BluetoothManager
+- (void)_connectedStatusChanged
+{
+	%orig;
+
+	if (preferences && preferences.enabled) {
+		for (BluetoothDevice* device in [[%c(BluetoothManager) sharedInstance] pairedDevices]) {
+			NSString *identifier = [NSString stringWithFormat:@"ONBluetooth-%@", device.name];
+			ProcessSystemIcon(identifier, device.connected, @"");
+		}
+	}
+}
+%end
+
 #pragma mark #region [ SpringBoard ]
 %hook SpringBoard
 
-%new - (void)AVAudioRouteChanged:(NSNotification*)notification
+%new - (void)AVAudioRouteChanged:(NSNotification *)notification
 {
-	if (!preferences.airPlayModeEnabled || !preferences.enabled)
+	static int lastState = -1;
+	if (!preferences || !preferences.airPlayModeEnabled || !preferences.enabled)
 		return;
 
-	PostNotification((CFStringRef)AirPlayModeChangedNotification);
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.25 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+		isAirPlay = isAirPlayActive();
+		if (lastState != isAirPlay) {
+			lastState = isAirPlay;
+			UpdateAirPlayIcon();
+		}
+	});
+}
+
+%new - (void)ONBatteryDeviceControllerConnectedDevicesDidChange
+{
+	if (!preferences || !preferences.watchModeEnabled || !preferences.enabled)
+		return;
+
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.25 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+		UpdateWatchIcon();
+	});
 }
 
 -(id)init
@@ -749,6 +949,10 @@ static void InitBadges()
 	UpdateTetherIcon();
 //	UpdateAirplaneIcon();
 	UpdateBluetoothIcon();
+	UpdateLowPowerIcon();
+	UpdatePhoneMicMutedIcon();
+	UpdateWatchIcon();
+	UpdateWiFiCallingIcon();
 
 	isAirPlay = isAirPlayActive();
 	if (isAirPlay == 1 && preferences.enabled)
@@ -765,9 +969,13 @@ static void InitBadges()
 	AddObserver((CFStringRef)AirPlayModeChangedNotification, AirPlayModeSettingsChanged);
 	AddObserver((CFStringRef)AlarmModeChangedNotification, AlarmModeSettingsChanged);
 	AddObserver((CFStringRef)BluetoothModeChangedNotification, BluetoothModeSettingsChanged);
+	AddObserver((CFStringRef)LowPowerModeChangedNotification, LowPowerModeSettingsChanged);
+	AddObserver((CFStringRef)PhoneMicMutedModeChangedNotification, PhoneMicMutedModeSettingsChanged);
 	AddObserver((CFStringRef)QuietModeChangedNotification, QuietModeSettingsChanged);
 	AddObserver((CFStringRef)RotationLockModeChangedNotification, RotationLockModeSettingsChanged);
 	AddObserver((CFStringRef)VPNModeChangedNotification, VPNModeSettingsChanged);
+	AddObserver((CFStringRef)WatchModeChangedNotification, WatchModeSettingsChanged);
+	AddObserver((CFStringRef)WiFiCallingModeChangedNotification, WiFiCallingModeSettingsChanged);
 
 	AddObserver((CFStringRef)HideMailChangedNotification, HideMailSettingsChanged);
 
@@ -777,20 +985,29 @@ static void InitBadges()
 
 	[%c(AVAudioSession) sharedInstance];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(AVAudioRouteChanged:) name:@"AVAudioSessionRouteChangeNotification" object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(ONBatteryDeviceControllerConnectedDevicesDidChange) name:@"BCBatteryDeviceControllerConnectedDevicesDidChange" object:nil];
 
-	#ifdef DEBUGPREFS
-	dispatch_queue_t queue = dispatch_get_main_queue();
-	dispatch_async(queue,
-	^{
-		SBAwayController* c = [%c(SBAwayController) sharedAwayController];
-		[c attemptUnlock];
-		[c unlockWithSound:false];
-		[[%c(SBUserAgent) sharedUserAgent] openURL:[NSURL URLWithString:@"prefs:root=OpenNotifier"] allowUnlock:true animated:true];
-		dispatch_release(queue);
-	});
-	#endif
+	// #ifdef DEBUGPREFS
+	// dispatch_queue_t queue = dispatch_get_main_queue();
+	// dispatch_async(queue,
+	// ^{
+	// 	SBAwayController* c = [%c(SBAwayController) sharedAwayController];
+	// 	[c attemptUnlock];
+	// 	[c unlockWithSound:false];
+	// 	[[%c(SBUserAgent) sharedUserAgent] openURL:[NSURL URLWithString:@"prefs:root=OpenNotifier"] allowUnlock:true animated:true];
+	// 	dispatch_release(queue);
+	// });
+	// #endif
 
 	InitBadges();
+
+	isSpringBoardLoaded = YES;
+}
+
+-(void)setBatterySaverModeActive:(BOOL)arg1
+{
+	%orig;
+	UpdateLowPowerIcon();
 }
 %end
 #pragma mark #endregion
@@ -805,14 +1022,19 @@ static void InitBadges()
 %end
 #pragma mark #endregion
 
-#pragma mark #region [ SBSoundPreferences ]
-%hook SBSoundPreferences
--(void)userDefaultsDidChanged:(id)arg1
+#pragma mark #region [ SBTelephonyManager ]
+%hook SBTelephonyManager
+-(void)setIsInAirplaneMode:(BOOL)isInAirplaneMode
 {
+	// isAirplane = arg1;
 	%orig;
-	if (preferences.vibrateModeEnabled && preferences.enabled)
-	{
-		UpdateVibrateIcon();
+	// UpdateAirplaneIcon();
+
+	if (preferences && preferences.enabled && isInAirplaneMode) {
+		NSArray *bluetoothDevices = [preferences getBluetoothIdentifers];
+		for (NSString *identifier in bluetoothDevices) {
+			ProcessSystemIcon(identifier, NO, @"");
+		}
 	}
 }
 %end
@@ -833,15 +1055,15 @@ static void InitBadges()
 	%orig;
 }
 
-//-(void)_updateAirplaneMode
-//{
-//	if (preferences.airplaneModeEnabled)
-//	{
-//		UpdateAirplaneIcon();
-//		return;
-//	}
-//	%orig;
-//}
+// -(void)_updateAirplaneMode
+// {
+// 	if (preferences.airplaneModeEnabled)
+// 	{
+// 		UpdateAirplaneIcon();
+// 		return;
+// 	}
+// 	%orig;
+// }
 
 -(void)_updateAirplayItem
 {
@@ -912,7 +1134,6 @@ static void InitBadges()
 
 #pragma mark #region [ SBApplication ]
 %hook SBApplication
-
 -(void)setBadge:(id)badge
 {
 	id badgeCopy = badge;
@@ -932,9 +1153,9 @@ static void InitBadges()
 	[trackedBadgeCount setObject:showBadge ? badgeCopy : @"0" forKey:self.bundleIdentifier];
 	if (preferences.enabled)
 	{
-//		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, processInterval * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+		// dispatch_after(dispatch_time(DISPATCH_TIME_NOW, processInterval * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
 			ProcessApplicationIcon(self.bundleIdentifier);
-//		});
+		// });
 	}
 }
 %end
@@ -942,14 +1163,14 @@ static void InitBadges()
 
 #pragma mark #region [ BBServer ]
 %hook SBBulletinObserverViewController
-- (void)removeBulletin:(id)bulletinInfo fromSection:(id)sectionInfo
+- (void)_removeBulletin:(id)bulletinInfo fromSection:(id)sectionInfo
 {
 	%orig;
 	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
 		Log(@"removeBulletin\n%@\n%@\n%@\n%@", bulletinInfo, sectionInfo, [sectionInfo class], [bulletinInfo class]);
 
 		if (kCFCoreFoundationVersionNumber > UIKitVersionNumber_iOS_7_1_2) {
-			if (![sectionInfo isKindOfClass:%c(SBNotificationCenterSectionInfo)] || ![bulletinInfo isKindOfClass:%c(SBNotificationsAllModeBulletinInfo)]) {
+			if (![sectionInfo isKindOfClass:%c(SBNotificationCenterSectionInfo)] || ![bulletinInfo isKindOfClass:%c(SBBBBulletinInfo)]) {
 				return;
 			}
 		} else {
@@ -957,7 +1178,6 @@ static void InitBadges()
 				return;
 			}
 		}
-
 
 		NSString *section = [[sectionInfo representedListSection] sectionID];
 		int count = [self _numberOfBulletinsInSection:sectionInfo];
@@ -1003,6 +1223,34 @@ static void InitBadges()
 %end
 #pragma mark #endregion
 %end //group All
+
+%group Group_InCallService
+%hook TUCall
+- (BOOL)setMuted:(BOOL)arg1
+{
+	BOOL ret = %orig;
+	if (preferences && preferences.enabled && preferences.phoneMicMutedModeEnabled) {
+		isPhoneMicMuted = arg1;
+		UpdatePhoneMicMutedIcon();
+	}
+
+	return ret;
+}
+%end
+
+%hook TUAudioSystemController
+- (BOOL)setUplinkMuted:(BOOL)arg1
+{
+	BOOL ret = %orig;
+	if (preferences && preferences.enabled && preferences.phoneMicMutedModeEnabled) {
+		isPhoneMicMuted = arg1;
+		UpdatePhoneMicMutedIcon();
+	}
+
+	return ret;
+}
+%end
+%end
 
 %group iOS7
 %hook SBCCSettingsSectionController
@@ -1055,14 +1303,37 @@ static void InitBadges()
 	}
 }
 %end
-#pragma mark #endregion
+
+%hook TUCallCapabilitiesState
+-(void)setWiFiCallingCurrentlyAvailable:(BOOL)arg1
+{
+	isWiFiCallingActive = arg1;
+	%orig;
+	if (isSpringBoardLoaded && preferences.wiFiCallingModeEnabled && preferences.enabled) {
+		// dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC), dispatch_get_main_queue(), ^(void) {
+			UpdateWiFiCallingIcon();
+		// });
+	}
+}
 %end
+
+#pragma mark #endregion
+%end // group iOS8
 
 %ctor
 {
 	@autoreleasepool {
+		statusBarItems = [[NSMutableDictionary alloc] init];
+		currentIconSetList = [[NSMutableDictionary alloc] init];
+		trackedBadges = [[NSMutableDictionary alloc] init];
+		trackedBadgeCount = [[NSMutableDictionary alloc] init];
+		trackedNotifications = [[NSMutableDictionary alloc] init];
+		trackedNotificationCount = [[NSMutableDictionary alloc] init];
+		if (!preferences) preferences = ONPreferences.sharedInstance;
+
 		ReloadSettings();
 		%init(All);
+		%init(Group_InCallService);
 
 		if (kCFCoreFoundationVersionNumber > UIKitVersionNumber_iOS_7_1_2) {
 			%init(iOS8);

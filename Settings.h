@@ -6,21 +6,25 @@
 @interface OpenNotifierSettingsRootController: PSListController
 @end
 
-@interface OpenNotifierAppsController : PSViewController <UITableViewDelegate, UISearchBarDelegate>
+@interface OpenNotifierAppsController : PSViewController <UITableViewDelegate, UISearchBarDelegate, UISearchControllerDelegate, UISearchResultsUpdating>
 {
 	UITableView* _tableView;
 	ALApplicationTableDataSource* _dataSource;
-	UISearchBar* _searchBar;
+	BOOL isSearching;
 }
+@property (strong, nonatomic) UISearchController *searchController;
 @end
 
-@interface OpenNotifierIconsController : PSListController
+@interface OpenNotifierIconsController : PSListController <UISearchBarDelegate, UISearchControllerDelegate, UISearchResultsUpdating>
 {
 	NSString* _appName;
 	NSString* _identifier;
 	ONApplication* _application;
 	int _iconType;
+	BOOL isSearching;
+	NSString* _searchText;
 }
+@property (strong, nonatomic) UISearchController *searchController;
 -(id)initWithAppName:(NSString*)appName identifier:(NSString*)identifier type:(int)iconType; //0 = app, 1 = icon
 @end
 
@@ -32,4 +36,5 @@
 	UITableView *_logoTable;
 }
 @property(nonatomic, retain) NSMutableArray *_systemIcons;
+
 @end

@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>OpenNotifierSettings</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.n00neimp0rtant.opennotifiersettings</string>
+	<string>net.tateu.opennotifiersettings</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundlePackageType</key>

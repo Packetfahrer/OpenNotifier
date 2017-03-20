@@ -56,6 +56,7 @@
 {
 	if (!(self = [super init])) return nil;
 	self.icons = [NSMutableDictionary dictionary];
+	self.useBadges = 2;
 	self.useNotifications = 2;
 	return self;
 }
@@ -69,6 +70,11 @@
 -(NSMutableDictionary*)toDictionary
 {
 	NSMutableDictionary* value = [NSMutableDictionary dictionary];
+	if (self.useBadges < 2)
+	{
+		[value setObject:[NSNumber numberWithBool:(self.useBadges == 1)] forKey:ONUseBadgesKey];
+	}
+
 	if (self.useNotifications < 2)
 	{
 		[value setObject:[NSNumber numberWithBool:(self.useNotifications == 1)] forKey:ONUseNotificationsKey];
@@ -86,6 +92,11 @@
 	}
 
 	return value;
+}
+
+-(void)addUseBadges:(BOOL)useBadges
+{
+	self.useBadges = useBadges ? 1 : 0;
 }
 
 -(void)addUseNotifications:(BOOL)useNotifications
@@ -168,6 +179,7 @@ static ONPreferences* _instance;
 		if (![[appData objectForKey:identifer] isKindOfClass:[NSDictionary class]]) continue; //Fix crash if an old AppsVersion00 icon is still in the plist file
 
 		ONApplication* app = [ONApplication createInstance];
+		app.useBadges = [[appData objectForKey:identifer] objectForKey:ONUseBadgesKey] == nil ? 2 : ([[[appData objectForKey:identifer] objectForKey:ONUseBadgesKey] boolValue] ? 1 : 0);
 		app.useNotifications = [[appData objectForKey:identifer] objectForKey:ONUseNotificationsKey] == nil ? 2 : ([[[appData objectForKey:identifer] objectForKey:ONUseNotificationsKey] boolValue] ? 1 : 0);
 		NSMutableDictionary* icons = [[appData objectForKey:identifer] objectForKey:ONIconsKey];
 		for (NSString* iconName in icons.allKeys)
@@ -197,6 +209,13 @@ static ONPreferences* _instance;
 	return [self.applications objectForKey:identifer];
 }
 
+-(NSArray*)getBluetoothIdentifers
+{
+	NSArray *keys = [self.applications allKeys];
+	NSPredicate *predicate = [NSPredicate predicateWithFormat:@"SELF beginsWith[c] 'ONBluetooth-'"];
+	return [keys filteredArrayUsingPredicate:predicate];
+}
+
 -(void)setApplication:(ONApplication*)application named:(NSString*)identifer
 {
 	[self.applications setObject:application forKey:identifer];
@@ -205,6 +224,18 @@ static ONPreferences* _instance;
 -(void)removeApplication:(NSString*)identifer
 {
 	[self.applications removeObjectForKey:identifer];
+}
+
+-(void)addUseBadges:(BOOL)useBadges forApplication:(NSString*)identifer
+{
+	ONApplication* app = [self getApplication:identifer];
+	if (!app && !(app = [ONApplication createInstance]))
+	{
+		Log("Failed to get or create ONApplication");
+		return;
+	}
+	[app addUseBadges:useBadges];
+	[self setApplication:app named:identifer];
 }
 
 -(void)addUseNotifications:(BOOL)useNotifications forApplication:(NSString*)identifer
@@ -299,7 +330,6 @@ static ONPreferences* _instance;
 -(void)setHideMail:(bool)value
 {
 	[_data setObject:NSBool(value) forKey:ONHideMailKey];
-//	[self save];
 	[self saveWithNotification:HideMailChangedNotification];
 }
 
@@ -335,6 +365,7 @@ static ONPreferences* _instance;
 
 	[_data setObject:[NSNumber numberWithUnsignedInt:ONSchemaVersion] forKey:ONSchemaVersionKey];
 
+	[_data setObject:@(NO) forKey:@"profileSaved"];
 	if (![_data writeToFile:ONPreferencesFile atomically:true])
 	{
 		Log("Failed to save settings");
@@ -437,27 +468,27 @@ static ONPreferences* _instance;
 	[self saveWithNotification:TetherModeChangedNotification];
 }
 
-//-(bool)airplaneModeEnabled
-//{
-//	return [_data.allKeys containsObject:ONAirplaneModeEnabledKey] ? [[_data objectForKey:ONAirplaneModeEnabledKey] boolValue] : false;
-//}
+// -(bool)airplaneModeEnabled
+// {
+// 	return [_data.allKeys containsObject:ONAirplaneModeEnabledKey] ? [[_data objectForKey:ONAirplaneModeEnabledKey] boolValue] : false;
+// }
 //
-//-(void)setAirplaneModeEnabled:(bool)value
-//{
-//	[_data setObject:NSBool(value) forKey:ONAirplaneModeEnabledKey];
-//	[self saveWithNotification:AirplaneModeChangedNotification];
-//}
+// -(void)setAirplaneModeEnabled:(bool)value
+// {
+// 	[_data setObject:NSBool(value) forKey:ONAirplaneModeEnabledKey];
+// 	[self saveWithNotification:AirplaneModeChangedNotification];
+// }
 //
-//-(bool)airplaneIconOnLeft
-//{
-//	return [_data.allKeys containsObject:ONAirplaneIconLeftKey] ? [[_data objectForKey:ONAirplaneIconLeftKey] boolValue]: false;
-//}
+// -(bool)airplaneIconOnLeft
+// {
+// 	return [_data.allKeys containsObject:ONAirplaneIconLeftKey] ? [[_data objectForKey:ONAirplaneIconLeftKey] boolValue]: false;
+// }
 //
-//-(void)setAirplaneIconOnLeft:(bool)value
-//{
-//	[_data setObject:NSBool(value) forKey:ONAirplaneIconLeftKey];
-//	[self saveWithNotification:AirplaneModeChangedNotification];
-//}
+// -(void)setAirplaneIconOnLeft:(bool)value
+// {
+// 	[_data setObject:NSBool(value) forKey:ONAirplaneIconLeftKey];
+// 	[self saveWithNotification:AirplaneModeChangedNotification];
+// }
 
 -(bool)airPlayModeEnabled
 {
@@ -558,6 +589,50 @@ static ONPreferences* _instance;
 	[self saveWithNotification:BluetoothModeChangedNotification];
 }
 
+-(bool)lowPowerModeEnabled
+{
+	return [_data.allKeys containsObject:ONLowPowerModeEnabledKey] ? [[_data objectForKey:ONLowPowerModeEnabledKey] boolValue] : false;
+}
+
+-(void)setLowPowerModeEnabled:(bool)value
+{
+	[_data setObject:NSBool(value) forKey:ONLowPowerModeEnabledKey];
+	[self saveWithNotification:LowPowerModeChangedNotification];
+}
+
+-(bool)lowPowerIconOnLeft
+{
+	return [_data.allKeys containsObject:ONLowPowerIconLeftKey] ? [[_data objectForKey:ONLowPowerIconLeftKey] boolValue]: false;
+}
+
+-(void)setLowPowerIconOnLeft:(bool)value
+{
+	[_data setObject:NSBool(value) forKey:ONLowPowerIconLeftKey];
+	[self saveWithNotification:LowPowerModeChangedNotification];
+}
+
+-(bool)phoneMicMutedModeEnabled
+{
+	return [_data.allKeys containsObject:ONPhoneMicMutedModeEnabledKey] ? [[_data objectForKey:ONPhoneMicMutedModeEnabledKey] boolValue] : false;
+}
+
+-(void)setPhoneMicMutedModeEnabled:(bool)value
+{
+	[_data setObject:NSBool(value) forKey:ONPhoneMicMutedModeEnabledKey];
+	[self saveWithNotification:PhoneMicMutedModeChangedNotification];
+}
+
+-(bool)phoneMicMutedIconOnLeft
+{
+	return [_data.allKeys containsObject:ONPhoneMicMutedIconLeftKey] ? [[_data objectForKey:ONPhoneMicMutedIconLeftKey] boolValue]: false;
+}
+
+-(void)setPhoneMicMutedIconOnLeft:(bool)value
+{
+	[_data setObject:NSBool(value) forKey:ONPhoneMicMutedIconLeftKey];
+	[self saveWithNotification:PhoneMicMutedModeChangedNotification];
+}
+
 -(bool)quietModeEnabled
 {
 	return [_data.allKeys containsObject:ONQuietModeEnabledKey] ? [[_data objectForKey:ONQuietModeEnabledKey] boolValue] : false;
@@ -644,6 +719,50 @@ static ONPreferences* _instance;
 {
 	[_data setObject:NSBool(value) forKey:ONVPNIconLeftKey];
 	[self saveWithNotification:VPNModeChangedNotification];
+}
+
+-(bool)watchModeEnabled
+{
+	return [_data.allKeys containsObject:ONWatchModeEnabledKey] ? [[_data objectForKey:ONWatchModeEnabledKey] boolValue] : false;
+}
+
+-(void)setWatchModeEnabled:(bool)value
+{
+	[_data setObject:NSBool(value) forKey:ONWatchModeEnabledKey];
+	[self saveWithNotification:WatchModeChangedNotification];
+}
+
+-(bool)watchIconOnLeft
+{
+	return [_data.allKeys containsObject:ONWatchIconLeftKey] ? [[_data objectForKey:ONWatchIconLeftKey] boolValue]: false;
+}
+
+-(void)setWatchIconOnLeft:(bool)value
+{
+	[_data setObject:NSBool(value) forKey:ONWatchIconLeftKey];
+	[self saveWithNotification:WatchModeChangedNotification];
+}
+
+-(bool)wiFiCallingModeEnabled
+{
+	return [_data.allKeys containsObject:ONWiFiCallingModeEnabledKey] ? [[_data objectForKey:ONWiFiCallingModeEnabledKey] boolValue] : false;
+}
+
+-(void)setWiFiCallingModeEnabled:(bool)value
+{
+	[_data setObject:NSBool(value) forKey:ONWiFiCallingModeEnabledKey];
+	[self saveWithNotification:WiFiCallingModeChangedNotification];
+}
+
+-(bool)wiFiCallingIconOnLeft
+{
+	return [_data.allKeys containsObject:ONWiFiCallingIconLeftKey] ? [[_data objectForKey:ONWiFiCallingIconLeftKey] boolValue]: false;
+}
+
+-(void)setWiFiCallingIconOnLeft:(bool)value
+{
+	[_data setObject:NSBool(value) forKey:ONWiFiCallingIconLeftKey];
+	[self saveWithNotification:WiFiCallingModeChangedNotification];
 }
 @end
 #pragma mark #endregion

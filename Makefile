@@ -11,11 +11,6 @@ else
 	PACKAGE_VERSION = $(THEOS_PACKAGE_BASE_VERSION)
 endif
 
-ADDITIONAL_CFLAGS = -Iinclude
-ADDITIONAL_LDFLAGS = -L./lib
-
-PACKAGE_VERSION = $(THEOS_PACKAGE_BASE_VERSION)
-
 include $(THEOS)/makefiles/common.mk
 _THEOS_INTERNAL_CFLAGS += -w
 
@@ -25,7 +20,7 @@ OpenNotifier_LIBRARIES = statusbar
 
 BUNDLE_NAME = OpenNotifierSettings
 OpenNotifierSettings_BUNDLE_NAME = OpenNotifier
-OpenNotifierSettings_FILES =  Settings.mm Preferences.mm
+OpenNotifierSettings_FILES =  Settings.mm Preferences.mm ONProfileController.mm ONBluetoothController.mm
 OpenNotifierSettings_INSTALL_PATH = /Library/PreferenceBundles
 OpenNotifierSettings_FRAMEWORKS = UIKit CoreGraphics
 OpenNotifierSettings_PRIVATE_FRAMEWORKS = Preferences

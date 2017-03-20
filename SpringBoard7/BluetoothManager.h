@@ -89,3 +89,7 @@
 
 @end
 
+@interface BluetoothDevice : NSObject
+- (id)name;
+- (BOOL)connected;
+@end
