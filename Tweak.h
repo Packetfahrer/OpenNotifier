@@ -5,7 +5,7 @@
 #ifdef DEBUG
 	#define Log(s, ...) NSLog(@"[OpenNotifier] %s(%d): %@", __FUNCTION__, __LINE__, [NSString stringWithFormat:@s, ##__VA_ARGS__])
 #else
-	#define Log(s, ...) 
+	#define Log(s, ...)
 #endif
 #pragma mark #endregion
 
@@ -17,7 +17,7 @@
 #define PostNotification(notification) \
 	CFNotificationCenterPostNotificationWithOptions(CFNotificationCenterGetDarwinNotifyCenter(), \
 		notification, NULL, NULL, kCFNotificationDeliverImmediately)
-		
+
 #pragma mark #endregion
 
 #pragma mark #region [ Boolean Helper ]

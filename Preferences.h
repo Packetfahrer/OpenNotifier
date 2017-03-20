@@ -21,6 +21,7 @@ typedef NSUInteger ONIconAlignment;
 	NSMutableDictionary* _dictionary;
 }
 @property(retain, nonatomic) NSMutableDictionary* icons;
+@property(nonatomic) int useNotifications;
 -(NSMutableDictionary*)toDictionary;
 -(bool)containsIcon:(NSString*)iconName;
 @end
@@ -32,15 +33,44 @@ typedef NSUInteger ONIconAlignment;
 }
 @property(readonly, nonatomic) NSMutableDictionary* applications;
 @property(assign) bool enabled;
+@property(assign) bool globalUseBadges;
+@property(assign) bool globalUseNotifications;
 @property(assign) bool iconsOnLeft;
 @property(assign) bool silentModeEnabled;
+@property(assign) bool silentModeInverted;
 @property(assign) bool silentIconOnLeft;
+@property(assign) bool vibrateModeEnabled;
+@property(assign) bool vibrateModeInverted;
+@property(assign) bool vibrateIconOnLeft;
+@property(assign) bool tetherModeEnabled;
+@property(assign) bool tetherIconOnLeft;
+//@property(assign) bool airplaneModeEnabled;
+//@property(assign) bool airplaneIconOnLeft;
+@property(assign) bool airPlayModeEnabled;
+@property(assign) bool airPlayAlwaysEnabled;
+@property(assign) bool airPlayIconOnLeft;
+@property(assign) bool alarmModeEnabled;
+@property(assign) bool alarmModeInverted;
+@property(assign) bool alarmIconOnLeft;
+@property(assign) bool bluetoothModeEnabled;
+@property(assign) bool bluetoothAlwaysEnabled;
+@property(assign) bool bluetoothIconOnLeft;
+@property(assign) bool quietModeEnabled;
+@property(assign) bool quietModeInverted;
+@property(assign) bool quietIconOnLeft;
+@property(assign) bool rotationLockModeEnabled;
+@property(assign) bool rotationLockModeInverted;
+@property(assign) bool rotationLockIconOnLeft;
+@property(assign) bool vPNModeEnabled;
+@property(assign) bool vPNIconOnLeft;
+@property(assign) bool hideMail;
 
 +(id)sharedInstance;
 
 -(ONApplication*)getApplication:(NSString*)identifer;
 -(void)removeApplication:(NSString*)identifer;
 
+-(void)addUseNotifications:(BOOL)useNotifications forApplication:(NSString*)identifer;
 -(id)addIcon:(NSString*)iconName forApplication:(NSString*)identifer;
 -(void)removeIcon:(NSString*)iconName fromApplication:(NSString*)identifer;
 -(ONApplicationIcon*)getIcon:(NSString*)iconName forApplication:(NSString*)identifer;

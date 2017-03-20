@@ -12,7 +12,7 @@
 			<key>label</key>
 			<string>General</string>
 			<key>footerText</key>
-			<string>Show notification icons on the left side of the status bar.</string>
+			<string>Global Settings</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -20,7 +20,7 @@
 			<key>id</key>
 			<string>ONEnabled</string>
 			<key>label</key>
-			<string>Enabled</string>			
+			<string>Enabled</string>
 			<key>default</key>
 			<true/>
 		</dict>
@@ -30,7 +30,37 @@
 			<key>id</key>
 			<string>ONNotifIconsLeft</string>
 			<key>label</key>
-			<string>↳ Align Left</string>
+			<string>    ↳ Align Left</string>
+			<key>default</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONHideMail</string>
+			<key>label</key>
+			<string>Hide Mail Icon Badge</string>
+			<key>default</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONGlobalUseBadges</string>
+			<key>label</key>
+			<string>Use Badges</string>
+			<key>default</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONGlobalUseNotifications</string>
+			<key>label</key>
+			<string>Use Notification Center</string>
 			<key>default</key>
 			<false/>
 		</dict>
@@ -38,47 +68,283 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>Show silent mode icon on the left side of the status bar.</string>
+			<string>Show system icons on the status bar.</string>
 		</dict>
+<!-- 		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONAirplaneModeIcon</string>
+			<key>label</key>
+			<string>Airplane Mode Icon</string>
+			<key>default</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONAirplaneIconLeft</string>
+			<key>label</key>
+			<string>    ↳ Align Left</string>
+			<key>default</key>
+			<false/>
+		</dict> -->
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONAirPlayModeIcon</string>
+			<key>label</key>
+			<string>AirPlay Icon</string>
+			<key>default</key>
+			<false/>
+		</dict>
+ <!--		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONAirPlayAlways</string>
+			<key>label</key>
+			<string>    Icon Always On</string>
+			<key>default</key>
+			<false/>
+		</dict> -->
+<!--		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONAirPlayIconLeft</string>
+			<key>label</key>
+			<string>    ↳ Align Left</string>
+			<key>default</key>
+			<false/>
+		</dict> -->
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONAlarmModeIcon</string>
+			<key>label</key>
+			<string>Alarm Icon</string>
+			<key>default</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONAlarmModeInverted</string>
+			<key>label</key>
+			<string>    Inverted</string>
+			<key>default</key>
+			<true/>
+		</dict>
+<!--		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONAlarmIconLeft</string>
+			<key>label</key>
+			<string>    ↳ Align Left</string>
+			<key>default</key>
+			<false/>
+		</dict> -->
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONBluetoothModeIcon</string>
+			<key>label</key>
+			<string>Bluetooth Icon</string>
+			<key>default</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONBluetoothAlways</string>
+			<key>label</key>
+			<string>    Icon Always On</string>
+			<key>default</key>
+			<true/>
+		</dict>
+<!--		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONBluetoothIconLeft</string>
+			<key>label</key>
+			<string>    ↳ Align Left</string>
+			<key>default</key>
+			<false/>
+		</dict> -->
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONQuietModeIcon</string>
+			<key>label</key>
+			<string>Do Not Disturb Icon</string>
+			<key>default</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONQuietModeInverted</string>
+			<key>label</key>
+			<string>    Inverted</string>
+			<key>default</key>
+			<true/>
+		</dict>
+<!--		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONQuietIconLeft</string>
+			<key>label</key>
+			<string>    ↳ Align Left</string>
+			<key>default</key>
+			<false/>
+		</dict> -->
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONRotationLockModeIcon</string>
+			<key>label</key>
+			<string>Rotation Lock Icon</string>
+			<key>default</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONRotationLockModeInverted</string>
+			<key>label</key>
+			<string>    Inverted</string>
+			<key>default</key>
+			<true/>
+		</dict>
+<!--		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONRotationLockIconLeft</string>
+			<key>label</key>
+			<string>    ↳ Align Left</string>
+			<key>default</key>
+			<false/>
+		</dict> -->		
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>id</key>
 			<string>ONSilentModeIcon</string>
 			<key>label</key>
-			<string>Silent Mode Icon</string>			
+			<string>Silent Mode Icon</string>
 			<key>default</key>
-			<true/>
+			<false/>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>id</key>
+			<string>ONSilentModeInverted</string>
+			<key>label</key>
+			<string>    Inverted</string>
+			<key>default</key>
+			<true/>
+		</dict>
+<!--		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
 			<string>ONSilentIconLeft</string>
 			<key>label</key>
-			<string>↳ Align Left</string>
+			<string>    ↳ Align Left</string>
+			<key>default</key>
+			<false/>
+		</dict> -->
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONTetherModeIcon</string>
+			<key>label</key>
+			<string>Tether Icon</string>
 			<key>default</key>
 			<false/>
 		</dict>
 <!--		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>footerText</key>
-			<string>Some apps like Sportacular do not get badges for push notifications. You can enable them here.</string>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONTetherIconLeft</string>
+			<key>label</key>
+			<string>    ↳ Align Left</string>
+			<key>default</key>
+			<false/>
+		</dict> -->
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONVibrateModeIcon</string>
+			<key>label</key>
+			<string>Vibrate Mode Icon</string>
+			<key>default</key>
+			<false/>
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSLinkCell</string>
-			<key>detail</key>
-			<string>OpenNotifierSettingsPseudoBadgesController</string>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONVibrateModeInverted</string>
 			<key>label</key>
-			<string>Pseudo-Badges</string>
-		</dict>-->
+			<string>    Inverted</string>
+			<key>default</key>
+			<true/>
+		</dict>
+<!--		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONVibrateIconLeft</string>
+			<key>label</key>
+			<string>    ↳ Align Left</string>
+			<key>default</key>
+			<false/>
+		</dict> -->
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONVPNModeIcon</string>
+			<key>label</key>
+			<string>VPN Icon</string>
+			<key>default</key>
+			<false/>
+		</dict>
+<!--		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>id</key>
+			<string>ONVPNIconLeft</string>
+			<key>label</key>
+			<string>    ↳ Align Left</string>
+			<key>default</key>
+			<false/>
+		</dict> -->
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>For support or feature suggestions, please mention @OpenNotifier on Twitter (or email n00neimp0rtant@me.com).</string>
+			<string></string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -87,6 +353,14 @@
 			<string>OpenNotifierAppsController</string>
 			<key>label</key>
 			<string>Apps</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>detail</key>
+			<string>SystemIconsController</string>
+			<key>label</key>
+			<string>System Icons</string>
 		</dict>
 	</array>
 </dict>
